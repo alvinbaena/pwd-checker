@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  zinc:
+    image: public.ecr.aws/h9e2j3o7/zinc:latest
+    restart: unless-stopped
+    environment:
+      ZINC_PROMETHEUS_ENABLE: "true"
+      ZINC_TELEMETRY: "false"
+      ZINC_SENTRY: "false"
+      ZINC_FIRST_ADMIN_USER: "zincadm"
+      ZINC_FIRST_ADMIN_PASSWORD: "Password123"
+      DATA_PATH: "/data"
+#      GIN_MODE: "release"
+    ports:
+      - "4080:4080"
+    volumes:
+      - zinc-pwd-volume:/data
+
+volumes:
+  zinc-pwd-volume:
