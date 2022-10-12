@@ -1,15 +1,17 @@
 package config
 
 import (
+	"github.com/go-playground/validator/v10"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 	"reflect"
 	"strings"
 )
 
 type Config struct {
-	ZincUrl      string `mapstructure:"ZINC_URL"`
-	ZincUser     string `mapstructure:"ZINC_USER"`
-	ZincPassword string `mapstructure:"ZINC_PASSWORD"`
+	Port    string `mapstructure:"PORT" validate:"required"`
+	GcsFile string `mapstructure:"GCS_FILE" validate:"required"`
+	Debug   bool   `mapstructure:"DEBUG"`
 }
 
 func bindEnvs(iface interface{}, parts ...string) {
@@ -41,5 +43,11 @@ func Load() (config Config, err error) {
 	bindEnvs(config)
 
 	err = viper.Unmarshal(&config)
+	validate := validator.New()
+
+	if err := validate.Struct(&config); err != nil {
+		log.Fatal().Err(err).Msg("Missing required environment variables.")
+	}
+
 	return
 }

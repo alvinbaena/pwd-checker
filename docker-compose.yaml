@@ -1,21 +1,17 @@
 version: "3.9"
 
 services:
-  zinc:
-    image: public.ecr.aws/h9e2j3o7/zinc:latest
+  pwd-checker:
+    build: .
     restart: unless-stopped
     environment:
-      ZINC_PROMETHEUS_ENABLE: "true"
-      ZINC_TELEMETRY: "false"
-      ZINC_SENTRY: "false"
-      ZINC_FIRST_ADMIN_USER: "zincadm"
-      ZINC_FIRST_ADMIN_PASSWORD: "Password123"
-      DATA_PATH: "/data"
-#      GIN_MODE: "release"
+      PORT: "3100"
+      GCS_FILE: "/pwned-v8-p50m.gcs"
+      DEBUG: "false"
     ports:
-      - "4080:4080"
+      - "3100:3100"
     volumes:
-      - zinc-pwd-volume:/data
-
-volumes:
-  zinc-pwd-volume:
+      - type: bind
+        source: ./pwned-v8-p50m.gcs
+        target: /pwned-v8-p50m.gcs
+        read_only: true
