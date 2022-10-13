@@ -9,6 +9,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"net/http"
 	"os"
 	"pwd-checker/internal/gcs"
 	"regexp"
@@ -45,6 +46,16 @@ var (
 func queryCommand(password string) error {
 	if verbose {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	}
+
+	if profile {
+		log.Info().Msgf("Profiling is enabled for this session. Server will listen on port %d", pprofPort)
+		go func() {
+			if err := http.ListenAndServe(fmt.Sprintf(":%d", pprofPort), nil); err != nil {
+				log.Error().Err(err).Msgf("Error starting profiling server on port %d", pprofPort)
+				return
+			}
+		}()
 	}
 
 	file, err := os.Open(inputFile)

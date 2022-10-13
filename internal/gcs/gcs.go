@@ -50,10 +50,10 @@ func (b *Builder) Add(entry uint64) {
 
 // Finalize the construction of the database
 func (b *Builder) Finalize(stat *Status) error {
-	// Adjust with the actual number of items, not the line estimate
+	// Adjust with the actual number of items, not the estimate
 	b.num = uint64(len(b.values))
-
 	log.Debug().Msgf("Index has %d items", b.num)
+
 	np := b.num * b.probability
 
 	stat.Stage("Normalise")
@@ -71,7 +71,7 @@ func (b *Builder) Finalize(stat *Status) error {
 
 	index := make([]indexPair, 0, indexPoints)
 	encoder := NewEncoder(b.inner, b.probability)
-	stat.Stage("Encode")
+	stat.StageWork("Encode", b.num)
 
 	// Add a 0 at the start
 	index = append(index, indexPair{0, 0})

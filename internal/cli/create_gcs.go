@@ -2,10 +2,14 @@ package cli
 
 import (
 	"bufio"
+	"fmt"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"io"
 	"math"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"pwd-checker/internal/gcs"
 	"runtime"
@@ -41,6 +45,20 @@ func init() {
 
 // Inspired by https://marcellanz.com/post/file-read-challenge/
 func createCommand() error {
+	if verbose {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	}
+
+	if profile {
+		log.Info().Msgf("Profiling is enabled for this session. Server will listen on port %d", pprofPort)
+		go func() {
+			if err := http.ListenAndServe(fmt.Sprintf(":%d", pprofPort), nil); err != nil {
+				log.Error().Err(err).Msgf("Error starting profiling server on port %d", pprofPort)
+				return
+			}
+		}()
+	}
+
 	s := stats()
 	defer s()
 
@@ -70,19 +88,19 @@ func createCommand() error {
 	// 847223402 is the exact number of lines for v8 file
 	n := estimateFileLines(file)
 
-	log.Info().Msgf("Estimated memory use for %d items %d MiB", n, (n*8)/(1024*1024))
+	log.Warn().Msgf("Estimated memory use for %d items %d MiB", n, (n*8)/(1024*1024))
 	if n*8 > 1024*1024*1024*2 {
-		log.Warn().Msgf("This process will cause disk swapping if your current system memory is not the minimum amount (%d MiB). ^C now to stop the process", (n*8)/(1024*1024))
-		time.Sleep(5 * time.Second)
+		log.Warn().Msgf("This process will cause disk swapping if your current system memory is not at least %d MiB. ^C now to stop the process", (n*8)/(1024*1024))
+		time.Sleep(10 * time.Second)
 	}
 
-	log.Info().Msg("Converting pwned passwords file. This might take a while")
+	log.Info().Msg("Starting process. This might take a while, be patient :)")
 
 	builder := gcs.NewBuilder(out, n, probability, indexGranularity)
 	scanner := bufio.NewScanner(file)
 	stat := gcs.NewStatus()
 
-	// Pool to store the read lines from the file, in 64k chunks
+	// Pool to store the read lines from the file, in 64kb chunks
 	linesChunkLen := 64 * 1024
 	linesPool := sync.Pool{New: func() interface{} {
 		lines := make([]string, 0, linesChunkLen)

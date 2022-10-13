@@ -7,6 +7,8 @@ import (
 var (
 	inputFile string
 	verbose   bool
+	profile   bool
+	pprofPort uint16
 
 	rootCmd = &cobra.Command{
 		Use:   "pwdcheck [COMMAND] [OPTIONS]",
@@ -17,7 +19,9 @@ var (
 )
 
 func init() {
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "If it should print more info")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Print more information on the processing")
+	rootCmd.PersistentFlags().BoolVar(&profile, "profile", false, "Enable the profiling server (pprof) when running commands")
+	rootCmd.PersistentFlags().Uint16Var(&pprofPort, "profile-port", 6060, "The port to use for the pprof server. Only used if the profile flag is set")
 }
 
 func Execute() error {
