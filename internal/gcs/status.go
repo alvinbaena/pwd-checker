@@ -74,7 +74,7 @@ func (s *Status) Incr() {
 func (s *Status) FinishStage() {
 	if s.stageName != nil {
 		elapsed := time.Since(s.stageStart)
-		log.Info().Msgf("%s complete in %v", s.stageName, elapsed)
+		log.Info().Msgf("%s complete in %v", *s.stageName, elapsed)
 	}
 
 	none := ""

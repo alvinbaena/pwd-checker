@@ -2,7 +2,6 @@ package cli
 
 import (
 	"bufio"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"io"
@@ -23,11 +22,12 @@ var (
 		Use:   "create",
 		Short: "Create a Pwned Passwords GCS database from file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return nil
+			return createCommand()
 		},
 	}
 )
 
+//goland:noinspection GoUnhandledErrorResult
 func init() {
 	createCmd.Flags().StringVarP(&inputFile, "file", "f", "", "Input file path (required)")
 	createCmd.MarkFlagRequired("file")
@@ -41,10 +41,6 @@ func init() {
 
 // Inspired by https://marcellanz.com/post/file-read-challenge/
 func createCommand() error {
-	if verbose {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	}
-
 	s := stats()
 	defer s()
 
@@ -71,6 +67,7 @@ func createCommand() error {
 	}(out)
 
 	// Estimate the amount of lines in the passwords file. It's pretty accurate, <= 1% error rate
+	// 847223402 is the exact number of lines for v8 file
 	n := estimateFileLines(file)
 
 	log.Info().Msgf("Estimated memory use for %d items %d MiB", n, (n*8)/(1024*1024))
@@ -81,10 +78,6 @@ func createCommand() error {
 
 	log.Info().Msg("Converting pwned passwords file. This might take a while")
 
-	// TODO It's all wrong. The encoding, the writing, everything is wrong!
-	// For now use Freaky's gcstool
-
-	// 847223402 is the exact number of lines for v8 file
 	builder := gcs.NewBuilder(out, n, probability, indexGranularity)
 	scanner := bufio.NewScanner(file)
 	stat := gcs.NewStatus()
@@ -92,10 +85,10 @@ func createCommand() error {
 	// Pool to store the read lines from the file, in 64k chunks
 	linesChunkLen := 64 * 1024
 	linesPool := sync.Pool{New: func() interface{} {
-		lines := make([][]byte, 0, linesChunkLen)
+		lines := make([]string, 0, linesChunkLen)
 		return lines
 	}}
-	lines := linesPool.Get().([][]byte)[:0]
+	lines := linesPool.Get().([]string)[:0]
 
 	recordsPool := sync.Pool{New: func() interface{} {
 		entries := make([]uint64, 0, linesChunkLen)
@@ -110,7 +103,7 @@ func createCommand() error {
 	// Read first line
 	scanner.Scan()
 	for {
-		lines = append(lines, scanner.Bytes())
+		lines = append(lines, scanner.Text())
 		willScan := scanner.Scan()
 
 		if len(lines) == linesChunkLen || !willScan {
@@ -123,9 +116,9 @@ func createCommand() error {
 
 				for _, line := range linesToProcess {
 					if len(line) < 16 {
-						log.Trace().Msgf("Skipping line %s", string(line))
+						log.Trace().Msgf("Skipping line %s", line)
 					} else {
-						hash := gcs.U64FromHex(line[0:16])
+						hash := gcs.U64FromHex([]byte(line)[0:16])
 						records = append(records, hash)
 					}
 				}
@@ -146,7 +139,7 @@ func createCommand() error {
 			}()
 
 			// Clear slice
-			lines = linesPool.Get().([][]byte)[:0]
+			lines = linesPool.Get().([]string)[:0]
 		}
 
 		if !willScan {

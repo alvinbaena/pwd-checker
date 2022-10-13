@@ -45,7 +45,6 @@ func NewBuilder(w *os.File, num uint64, probability uint64, indexGranularity uin
 
 // Add adds a new item to the database
 func (b *Builder) Add(entry uint64) {
-	log.Trace().Msgf("Adding entry to index: %v. Size: %d", entry, len(b.values))
 	b.values = append(b.values, entry)
 }
 
@@ -107,6 +106,7 @@ func (b *Builder) Finalize(stat *Status) error {
 	}
 
 	endOfData := (totalBits + wr) / 8
+	log.Debug().Msgf("End of data: %d", endOfData)
 	stat.Stage("Index")
 
 	// Write the index: pairs of u64's (value, bit index)

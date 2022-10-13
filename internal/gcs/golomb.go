@@ -24,25 +24,20 @@ func (e *GolombEncoder) Encode(value uint64) (uint64, error) {
 	r := value % e.probability
 	written := uint64(0)
 
-	wr, err := e.inner.WriteBits(uint8(q+1), (1<<(q+1))-2)
+	_, err := e.inner.WriteBits(uint8(q+1), (1<<(q+1))-2)
 	if err != nil {
 		return written, err
 	}
-	written += wr
+	written += q + 1
 
-	wr, err = e.inner.WriteBits(e.log2p, r)
+	_, err = e.inner.WriteBits(e.log2p, r)
 	if err != nil {
 		return written, err
 	}
-	written += wr
-
+	written += uint64(e.log2p)
 	return written, nil
 }
 
 func (e *GolombEncoder) Finalize() (uint64, error) {
 	return e.inner.Flush()
-}
-
-func (e *GolombEncoder) IntoInner() *BitWriter {
-	return e.inner
 }

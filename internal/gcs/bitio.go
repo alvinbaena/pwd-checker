@@ -1,7 +1,7 @@
 package gcs
 
 import (
-	"encoding/binary"
+	"bufio"
 	"errors"
 	"io"
 	"os"
@@ -10,7 +10,7 @@ import (
 // https://github.com/Freaky/rust-bitrw
 
 // BitReader adds bit-level reading to os.File specifically.
-// TODO Maybe implement using bufio?
+// TODO Maybe implement using io.Reader?
 type BitReader struct {
 	inner  *os.File
 	buffer []byte
@@ -36,14 +36,14 @@ func (r *BitReader) ReadBit() (uint8, error) {
 }
 
 // ReadBits reads up to 64 bits from the reader.
-func (r *BitReader) ReadBits(nBits uint8) (uint64, error) {
+func (r *BitReader) ReadBits(n uint8) (uint64, error) {
 	// Read up to 64 bits to the buffer
-	if nBits > 64 {
+	if n > 64 {
 		return 0, errors.New("cannot read more than 64 bits at a time")
 	}
 
 	ret := uint64(0)
-	rBits := nBits
+	rBits := n
 
 	for rBits > r.unused {
 		ret |= uint64(r.buffer[0]) << (rBits - r.unused)
@@ -59,7 +59,7 @@ func (r *BitReader) ReadBits(nBits uint8) (uint64, error) {
 
 	if rBits > 0 {
 		ret |= uint64(r.buffer[0]) >> (r.unused - rBits)
-		r.buffer[0] &= byte(mask(uint64(r.unused - rBits)))
+		r.buffer[0] &= (1 << (r.unused - rBits)) - 1
 		r.unused -= rBits
 	}
 
@@ -114,15 +114,29 @@ func (r *BitReader) IntoInner() *os.File {
 	return r.inner
 }
 
-// BitWriter adds bit-level writing to any io.Writer.
-type BitWriter struct {
-	inner  *os.File
-	buffer uint64
-	unused uint64
+// An io.Writer and io.ByteWriter at the same time.
+type writerAndByteWriter interface {
+	io.Writer
+	io.ByteWriter
 }
 
-func NewBitWriter(w *os.File) *BitWriter {
-	return &BitWriter{inner: w}
+// BitWriter adds bit-level writing to any io.Writer.
+type BitWriter struct {
+	inner   writerAndByteWriter
+	wrapper *bufio.Writer // wrapper bufio.Writer if the target does not implement io.ByteWriter
+	buffer  uint8         // unwritten bits are stored here
+	unused  uint8         // number of unwritten bits in cache
+}
+
+func NewBitWriter(out io.Writer) *BitWriter {
+	w := &BitWriter{}
+	var ok bool
+	w.inner, ok = out.(writerAndByteWriter)
+	if !ok {
+		w.wrapper = bufio.NewWriter(out)
+		w.inner = w.wrapper
+	}
+	return w
 }
 
 // WriteBit writes a single bit to the inner.
@@ -135,70 +149,93 @@ func (w *BitWriter) WriteBit(bit uint8) (uint64, error) {
 }
 
 // WriteBits Writes up to 64 bits to the inner.
-func (w *BitWriter) WriteBits(nBits uint8, value uint64) (uint64, error) {
+func (w *BitWriter) WriteBits(n uint8, r uint64) (uint64, error) {
 	// Write up to 64 bits to the buffer
-	if nBits > 64 {
+	if n > 64 {
 		return 0, errors.New("cannot write more than 64 bits at a time")
 	}
 
-	nBitsRemaining := uint64(nBits)
-	if nBitsRemaining >= w.unused && w.unused < 8 {
-		excessBits := nBitsRemaining - w.unused
-		w.buffer <<= w.unused
-		w.buffer |= (value >> excessBits) & mask(w.unused)
-
-		buf := make([]byte, binary.MaxVarintLen64)
-		wr := binary.PutUvarint(buf, w.buffer)
-		if err := binary.Write(w.inner, binary.BigEndian, buf[:wr]); err != nil {
-			return uint64(wr * 8), err
-		}
-
-		nBitsRemaining = excessBits
-		w.unused = 8
-		w.buffer = 0
-	}
-
-	// let's write while we can fill up full bytes
-	for nBitsRemaining >= 8 {
-		nBitsRemaining -= 8
-
-		buf := make([]byte, binary.MaxVarintLen64)
-		wr := binary.PutUvarint(buf, w.buffer)
-		if err := binary.Write(w.inner, binary.BigEndian, buf[:wr]); err != nil {
-			return uint64(wr * 8), err
-		}
-	}
-
-	// put the remaining bits in the buffer
-	if nBitsRemaining > 0 {
-		w.buffer <<= nBitsRemaining
-		w.buffer |= value & mask(nBitsRemaining)
-		w.unused -= nBitsRemaining
-	}
-
-	return uint64(nBits), nil
+	return w.writeBitsInternal(n, r&(1<<n-1))
 }
 
-// FlushBits is exactly the same as Flush(), only it doesn't call Flush() on the
-// wrapped inner.
+// writeBitsInternal writes inner the n lowest bits of r.
 //
-// This may be useful if you're going to call `into_inner()` to get at the
-// wrapped inner in order to perform more bytewise writes, and don't care
-// if it's all on stable storage just yet.
-func (w *BitWriter) FlushBits() (uint64, error) {
-	if w.unused != 8 {
-		buf := make([]byte, binary.MaxVarintLen64)
-		wr := binary.PutUvarint(buf, w.buffer)
-		if err := binary.Write(w.inner, binary.BigEndian, buf[:wr]); err != nil {
+// r must not have bits set at n or higher positions (zero indexed).
+// If r might not satisfy this, a mask must be explicitly applied
+// before passing it to writeBitsInternal(), or WriteBits() should be used instead.
+//
+// writeBitsInternal() offers slightly better performance than WriteBits() because
+// the input r is not masked. Calling writeBitsInternal() with an r that does
+// not satisfy this is undefined behavior (might corrupt previously written bits).
+//
+// E.g. if you want to write 8 bits:
+//
+//	err := w.writeBitsInternal(0x34, 8)        // This is OK,
+//	                                           // 0x34 has no bits set higher than the 8th
+//	err := w.writeBitsInternal(0x1234&0xff, 8) // &0xff masks inner bits higher than the 8th
+//
+// Or:
+//
+//	err := w.WriteBits(0x1234, 8)            // bits higher than the 8th are ignored here
+func (w *BitWriter) writeBitsInternal(n uint8, r uint64) (uint64, error) {
+	newBits := w.unused + n
+	if newBits < 8 {
+		// r fits into buffer, no write will occur to file
+		w.buffer |= byte(r) << (8 - newBits)
+		w.unused = newBits
+		return uint64(n), nil
+	}
+	if newBits > 8 {
+		// buffer will be filled, and there will be more bits to write
+		// "Fill buffer" and write it inner
+		free := 8 - w.unused
+		if err := w.inner.WriteByte(w.buffer | uint8(r>>(n-free))); err != nil {
+			return 0, err
+		}
+		n -= free
+
+		// write inner whole bytes
+		for n >= 8 {
+			n -= 8
+			// No need to mask r, converting to byte will mask inner higher bits
+			if err := w.inner.WriteByte(uint8(r >> n)); err != nil {
+				return 0, err
+			}
+		}
+		// Put remaining into cache
+		if n > 0 {
+			// Note: n < 8 (in case of n=8, 1<<n would overflow byte)
+			w.buffer, w.unused = (uint8(r)&((1<<n)-1))<<(8-n), n
+		} else {
+			w.buffer, w.unused = 0, 0
+		}
+		return uint64(n), nil
+	}
+
+	// buffer will be filled exactly with the bits to be written
+	bb := w.buffer | uint8(r)
+	w.buffer, w.unused = 0, 0
+	err := w.inner.WriteByte(bb)
+	return uint64(n), err
+}
+
+// FlushBits aligns the bit stream to a byte boundary,
+// so next write will start/go into a new byte.
+// If there are cached bits, they are first written to the output.
+// Returns the number of skipped (unset but still written) bits.
+func (w *BitWriter) FlushBits() (skipped uint64, err error) {
+	if w.unused > 0 {
+		if err := w.inner.WriteByte(w.buffer); err != nil {
 			return 0, err
 		}
 
-		written := w.unused
-		w.unused = 8
-		return written, nil
+		skipped = uint64(8 - w.unused)
+		w.buffer, w.unused = 0, 0
 	}
-
-	return 0, nil
+	if w.wrapper != nil {
+		err = w.wrapper.Flush()
+	}
+	return
 }
 
 // Flush any pending writes to the underlying buffer, padding with zero bits
@@ -207,33 +244,11 @@ func (w *BitWriter) FlushBits() (uint64, error) {
 // will be the total number of bits delivered to the inner, and will
 // always end on a byte boundary.
 //
-// This method should **always** be called prior to calling IntoInner() or
-// before allowing the `BitWriter` to go out of scope, or buffered bytes may
-// be lost.
-//
 // This also flushes the underlying inner.
 func (w *BitWriter) Flush() (uint64, error) {
 	wr, err := w.FlushBits()
 	if err != nil {
 		return wr, err
 	}
-
-	//err = (*w.inner).Flush()
-	//if err != nil {
-	//	return wr, err
-	//}
-
 	return wr, nil
-}
-
-// IntoInner unwraps this BitWriter, returning the underlying inner and discarding any
-// unwritten buffered bits.
-//
-// You should call Flush() if this is undesirable.
-func (w *BitWriter) IntoInner() *os.File {
-	return w.inner
-}
-
-func mask(n uint64) uint64 {
-	return (1 << n) - 1
 }
