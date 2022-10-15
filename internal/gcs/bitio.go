@@ -66,7 +66,7 @@ func (r *bitReader) ReadBits(n uint8) (uint64, error) {
 	return ret, nil
 }
 
-// Seek to the given *bit* bitPos in the file.  Currently, only
+// Seek to the given *bit* position in the file.  Currently, only
 // io.SeekStart and io.SeekEnd with negative offsets are supported.
 func (r *bitReader) Seek(offset int64, whence int) (ret int64, err error) {
 	switch whence {
@@ -108,9 +108,9 @@ func (r *bitReader) Seek(offset int64, whence int) (ret int64, err error) {
 	}
 }
 
-// IntoInner unwraps this bitReader, returning the underlying io.File and discarding any
+// Inner unwraps this bitReader, returning the underlying io.File and discarding any
 // unread buffered bits.
-func (r *bitReader) IntoInner() *os.File {
+func (r *bitReader) Inner() *os.File {
 	return r.inner
 }
 

@@ -266,19 +266,19 @@ func NewReader(file *os.File) *Reader {
 }
 
 func (r *Reader) Initialize() error {
-	if _, err := r.inner.IntoInner().Seek(-40, io.SeekEnd); err != nil {
+	if _, err := r.inner.Inner().Seek(-40, io.SeekEnd); err != nil {
 		return err
 	}
 
 	buf := make([]byte, 8)
-	if _, err := r.inner.IntoInner().Read(buf); err != nil {
+	if _, err := r.inner.Inner().Read(buf); err != nil {
 		return err
 	}
 	r.num = binary.BigEndian.Uint64(buf)
 	log.Debug().Msgf("Number of items: %d", r.num)
 
 	buf = make([]byte, 8)
-	if _, err := r.inner.IntoInner().Read(buf); err != nil {
+	if _, err := r.inner.Inner().Read(buf); err != nil {
 		return err
 	}
 	r.probability = binary.BigEndian.Uint64(buf)
@@ -288,21 +288,21 @@ func (r *Reader) Initialize() error {
 	log.Debug().Msgf("Log2: %d", r.log2p)
 
 	buf = make([]byte, 8)
-	if _, err := r.inner.IntoInner().Read(buf); err != nil {
+	if _, err := r.inner.Inner().Read(buf); err != nil {
 		return err
 	}
 	r.endOfData = binary.BigEndian.Uint64(buf)
 	log.Debug().Msgf("End of Data: %d", r.endOfData)
 
 	buf = make([]byte, 8)
-	if _, err := r.inner.IntoInner().Read(buf); err != nil {
+	if _, err := r.inner.Inner().Read(buf); err != nil {
 		return err
 	}
 	r.indexLen = binary.BigEndian.Uint64(buf)
 	log.Debug().Msgf("Index Length: %d", r.indexLen)
 
 	buf = make([]byte, 8)
-	if _, err := r.inner.IntoInner().Read(buf); err != nil {
+	if _, err := r.inner.Inner().Read(buf); err != nil {
 		return err
 	}
 
@@ -310,7 +310,7 @@ func (r *Reader) Initialize() error {
 		return errors.New("not a GCS File")
 	}
 
-	if _, err := r.inner.IntoInner().Seek(int64(r.endOfData), io.SeekStart); err != nil {
+	if _, err := r.inner.Inner().Seek(int64(r.endOfData), io.SeekStart); err != nil {
 		return err
 	}
 
@@ -321,13 +321,13 @@ func (r *Reader) Initialize() error {
 	log.Info().Msg("Initializing database")
 	for i := uint64(0); i < r.indexLen; i++ {
 		buf = make([]byte, 8)
-		if _, err := r.inner.IntoInner().Read(buf); err != nil {
+		if _, err := r.inner.Inner().Read(buf); err != nil {
 			return err
 		}
 		val := binary.BigEndian.Uint64(buf)
 
 		buf = make([]byte, 8)
-		if _, err := r.inner.IntoInner().Read(buf); err != nil {
+		if _, err := r.inner.Inner().Read(buf); err != nil {
 			return err
 		}
 		bitPos := binary.BigEndian.Uint64(buf)

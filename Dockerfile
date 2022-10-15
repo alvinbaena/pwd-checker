@@ -12,10 +12,9 @@ RUN go build -o /go/app/server /go/app/cmd/pwd-checker/server.go
 FROM alpine:3.16
 COPY --from=build /go/app/server /server
 
-#ARG USER=default
-#RUN adduser -D $USER \
-#        && chown $USER /server \
-#    && chown $USER /*.gcs
-#USER $USER
+ARG USER=default
+RUN adduser -D $USER \
+        && chown $USER /server
+USER $USER
 
 ENTRYPOINT [ "/server" ]

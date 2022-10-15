@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"encoding/binary"
 	"github.com/gin-gonic/gin"
+	"github.com/nbutton23/zxcvbn-go"
 	"net/http"
 	"os"
 	"pwd-checker/internal/gcs"
@@ -32,7 +33,17 @@ func (q *queryApi) checkPassword(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, queryResponse{Pwned: exists})
+	entropy := zxcvbn.PasswordStrength(req.Password, nil)
+	resp := queryResponse{
+		Pwned: exists,
+		Strength: &passwordStrength{
+			CrackTime:        entropy.CrackTime,
+			CrackTimeDisplay: entropy.CrackTimeDisplay,
+			Score:            entropy.Score,
+		},
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
 
 func (q *queryApi) checkHash(c *gin.Context) {

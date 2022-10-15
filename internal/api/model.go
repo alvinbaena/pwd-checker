@@ -5,10 +5,17 @@ type queryRequest struct {
 }
 
 type queryResponse struct {
-	Pwned    bool    `json:"pwned"`
-	Strength *string `json:"strength"`
+	Pwned    bool              `json:"pwned"`
+	Strength *passwordStrength `json:"strength,omitempty"`
 }
 
 type hashRequest struct {
 	Hash string `json:"hash" binding:"required"`
+}
+
+// MinEntropyMatch is the lowest entropy match found
+type passwordStrength struct {
+	CrackTime        float64 `json:"crackTime"`
+	CrackTimeDisplay string  `json:"crackTimeDisplay"`
+	Score            int     `json:"score"`
 }
