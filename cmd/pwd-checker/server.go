@@ -11,13 +11,12 @@ import (
 	"os"
 	"os/signal"
 	"pwd-checker/internal/api"
-	"pwd-checker/internal/config"
 	"syscall"
 	"time"
 )
 
 func main() {
-	cfg, err := config.Load()
+	cfg, err := api.LoadConfig()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error loading configuration")
 	}
@@ -38,8 +37,10 @@ func main() {
 		return zerolog.New(gin.DefaultWriter)
 	})))
 
-	v1 := router.Group("/v1/query")
-	if err = api.RegisterQueryApi(v1, file); err != nil {
+	v1 := router.Group("/v1")
+
+	pwned := v1.Group("/check")
+	if err = api.RegisterQueryApi(pwned, file); err != nil {
 		log.Fatal().Err(err).Msg("error initializing Query API")
 	}
 

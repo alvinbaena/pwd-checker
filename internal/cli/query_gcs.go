@@ -6,23 +6,19 @@ import (
 	"errors"
 	"fmt"
 	"github.com/manifoldco/promptui"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"net/http"
 	"os"
 	"pwd-checker/internal/gcs"
+	"pwd-checker/internal/util"
 	"regexp"
 	"strings"
 )
 
 var (
-	interactive bool
-	hashed      bool
-
 	queryCmd = &cobra.Command{
 		Use:   "query",
-		Short: "Query the Pwned Passwords GCS database",
+		Short: "Query the Pwned Passwords GCS database file",
 		Args: func(cmd *cobra.Command, args []string) error {
 			if !interactive {
 				if err := cobra.MinimumNArgs(1)(cmd, args); err != nil {
@@ -43,20 +39,18 @@ var (
 	}
 )
 
-func queryCommand(password string) error {
-	if verbose {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	}
+//goland:noinspection GoUnhandledErrorResult
+func init() {
+	queryCmd.Flags().StringVarP(&inputFile, "in-file", "i", "", "Pwned Passwords GCS input file (required)")
+	queryCmd.MarkFlagRequired("in-file")
+	queryCmd.Flags().BoolVarP(&interactive, "interactive", "n", false, "Interactive mode.")
+	queryCmd.Flags().BoolVarP(&hashed, "hashed", "s", false, "If the supplied password will be a Hexadecimal SHA1 hash or a plain text string.")
 
-	if profile {
-		log.Info().Msgf("Profiling is enabled for this session. Server will listen on port %d", pprofPort)
-		go func() {
-			if err := http.ListenAndServe(fmt.Sprintf(":%d", pprofPort), nil); err != nil {
-				log.Error().Err(err).Msgf("Error starting profiling server on port %d", pprofPort)
-				return
-			}
-		}()
-	}
+	rootCmd.AddCommand(queryCmd)
+}
+
+func queryCommand(password string) error {
+	util.ApplyCliSettings(verbose, profile, pprofPort)
 
 	file, err := os.Open(inputFile)
 	if err != nil {
@@ -176,14 +170,4 @@ func processPassword(password string) (uint64, error) {
 		val := binary.BigEndian.Uint64(buf)
 		return val, nil
 	}
-}
-
-func init() {
-	queryCmd.Flags().StringVarP(&inputFile, "file", "f", "", "Input file (required)")
-	queryCmd.MarkFlagRequired("file")
-
-	queryCmd.Flags().BoolVarP(&interactive, "interactive", "i", false, "Interactive mode.")
-	queryCmd.Flags().BoolVarP(&hashed, "hashed", "s", false, "If the supplied password will be a Hexadecimal SHA1 hash or a plain text string.")
-
-	rootCmd.AddCommand(queryCmd)
 }

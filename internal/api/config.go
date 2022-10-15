@@ -1,4 +1,4 @@
-package config
+package api
 
 import (
 	"github.com/go-playground/validator/v10"
@@ -33,7 +33,7 @@ func bindEnvs(iface interface{}, parts ...string) {
 	}
 }
 
-func Load() (config Config, err error) {
+func LoadConfig() (config Config, err error) {
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	// I hate this, but it works.

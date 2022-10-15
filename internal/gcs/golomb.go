@@ -5,21 +5,21 @@ import (
 	"os"
 )
 
-type GolombEncoder struct {
-	inner       *BitWriter
+type golombEncoder struct {
+	inner       *bitWriter
 	probability uint64
 	log2p       uint8
 }
 
-func NewEncoder(w *os.File, probability uint64) *GolombEncoder {
-	return &GolombEncoder{
-		inner:       NewBitWriter(w),
+func newEncoder(w *os.File, probability uint64) *golombEncoder {
+	return &golombEncoder{
+		inner:       newBitWriter(w),
 		probability: probability,
 		log2p:       uint8(math.Ceil(math.Log2(float64(probability)))),
 	}
 }
 
-func (e *GolombEncoder) Encode(value uint64) (uint64, error) {
+func (e *golombEncoder) Encode(value uint64) (uint64, error) {
 	q := value / e.probability
 	r := value % e.probability
 	written := uint64(0)
@@ -38,6 +38,6 @@ func (e *GolombEncoder) Encode(value uint64) (uint64, error) {
 	return written, nil
 }
 
-func (e *GolombEncoder) Finalize() (uint64, error) {
+func (e *golombEncoder) Finalize() (uint64, error) {
 	return e.inner.Flush()
 }

@@ -5,11 +5,6 @@ import (
 )
 
 var (
-	inputFile string
-	verbose   bool
-	profile   bool
-	pprofPort uint16
-
 	rootCmd = &cobra.Command{
 		Use:   "pwdcheck [COMMAND] [OPTIONS]",
 		Short: "Check a password against the Pwned Passwords dumps",

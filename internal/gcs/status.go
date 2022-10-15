@@ -2,10 +2,11 @@ package gcs
 
 import (
 	"github.com/rs/zerolog/log"
+	"sync/atomic"
 	"time"
 )
 
-type Status struct {
+type status struct {
 	stageName  *string
 	workCount  uint64
 	doneCount  uint64
@@ -14,34 +15,31 @@ type Status struct {
 	stageStart time.Time
 }
 
-func NewStatus() *Status {
-	return &Status{
-		workCount: 0,
-		doneCount: 0,
-		step:      0,
-		start:     time.Now(),
-	}
+func newStatus() *status {
+	return &status{start: time.Now()}
 }
 
-func (s *Status) Stage(stage string) {
+func (s *status) Stage(stage string) {
 	s.FinishStage()
 
 	s.stageName = &stage
+	log.Info().Msgf("%s starting...", *s.stageName)
+
 	s.stageStart = time.Now()
 	s.doneCount = 0
 }
 
-func (s *Status) SetWork(count uint64) {
+func (s *status) SetWork(count uint64) {
 	s.workCount = count
 	s.step = count / 20
 }
 
-func (s *Status) StageWork(name string, work uint64) {
+func (s *status) StageWork(name string, work uint64) {
 	s.Stage(name)
 	s.SetWork(work)
 }
 
-func (s *Status) PrintStatus() {
+func (s *status) PrintStatus() {
 	elapsed := time.Since(s.start)
 	log.Info().Msgf(
 		"%s: %d of %d, %.2f%%, %.0f/sec",
@@ -49,29 +47,22 @@ func (s *Status) PrintStatus() {
 		s.doneCount,
 		s.workCount,
 		float64(s.doneCount)/float64(s.workCount)*100,
-		float64(s.doneCount)/elapsed.Seconds()+float64(elapsed.Nanoseconds()/1000000000),
+		float64(s.doneCount)/elapsed.Seconds()+float64(elapsed.Nanoseconds()/1_000_000_000),
 	)
 }
 
-func (s *Status) SetWorkDone(count uint64) {
-	s.doneCount = count
+func (s *status) AddWork(count uint64) {
+	atomic.AddUint64(&s.doneCount, count)
 	if s.doneCount%s.step == 0 {
 		s.PrintStatus()
 	}
 }
 
-func (s *Status) AddWork(count uint64) {
-	s.doneCount += count
-	if s.doneCount%s.step == 0 {
-		s.PrintStatus()
-	}
-}
-
-func (s *Status) Incr() {
+func (s *status) Incr() {
 	s.AddWork(1)
 }
 
-func (s *Status) FinishStage() {
+func (s *status) FinishStage() {
 	if s.stageName != nil {
 		elapsed := time.Since(s.stageStart)
 		log.Info().Msgf("%s complete in %v", *s.stageName, elapsed)
@@ -81,7 +72,7 @@ func (s *Status) FinishStage() {
 	s.stageName = &none
 }
 
-func (s *Status) Done() {
+func (s *status) Done() {
 	s.FinishStage()
 	elapsed := time.Since(s.start)
 	log.Info().Msgf("Complete in %v", elapsed)

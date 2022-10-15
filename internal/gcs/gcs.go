@@ -1,13 +1,19 @@
 package gcs
 
 import (
+	"bufio"
 	"encoding/binary"
 	"errors"
 	"github.com/jfcg/sorty/v2"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 	"io"
 	"math"
 	"os"
+	"pwd-checker/internal/util"
+	"sync"
+	"time"
 )
 
 // https://github.com/rasky/gcs
@@ -20,58 +26,157 @@ type indexPair struct {
 	bitPos uint64
 }
 
-type Builder struct {
-	inner            *os.File
+type builder struct {
+	in               *os.File
+	out              *os.File
 	num              uint64
 	probability      uint64
 	indexGranularity uint64
 	values           []uint64
+	stat             *status
 }
 
 // NewBuilder builder for a new GCS file database.
 //
-// num is the number of items to insert into the database.
 // probability is the False positive rate for queries, 1-in-p.
 // indexGranularity is the entries per index point (16 bytes each).
-func NewBuilder(w *os.File, num uint64, probability uint64, indexGranularity uint64) *Builder {
-	return &Builder{
-		inner:            w,
-		num:              num,
+func NewBuilder(in *os.File, out *os.File, probability uint64, indexGranularity uint64) *builder {
+	// Estimate the amount of lines in the passwords file. It's pretty accurate, <= 1% error rate
+	// 847223402 is the exact number of lines for v8 file
+	estimatedLines := estimateFileLines(in)
+
+	return &builder{
+		in:               in,
+		out:              out,
+		num:              estimatedLines,
 		probability:      probability,
 		indexGranularity: indexGranularity,
-		values:           make([]uint64, 0, num),
+		values:           make([]uint64, 0, estimatedLines),
 	}
 }
 
+// Process creates the gcs file using the inputs in the builder
+// Inspired by https://marcellanz.com/post/file-read-challenge/
+func (b *builder) Process() error {
+	s := util.Stats()
+	defer s()
+
+	log.Warn().Msgf("Estimated memory use for %d items %d MiB", b.num, (b.num*8)/(1024*1024))
+	log.Warn().Msgf("This process will cause disk swapping and general slowness if your "+
+		"current system memory is not at least %d MiB. ^C now to stop the process.",
+		(b.num*8)/(1024*1024))
+	time.Sleep(10 * time.Second)
+
+	b.stat = newStatus()
+	log.Info().Msg("Starting process. This might take a while, be patient :)")
+
+	scanner := bufio.NewScanner(b.in)
+
+	// Pool to store the read lines from the file, in 64kb chunks
+	linesChunkLen := 64 * 1024
+	linesPool := sync.Pool{New: func() interface{} {
+		lines := make([]string, 0, linesChunkLen)
+		return lines
+	}}
+	lines := linesPool.Get().([]string)[:0]
+
+	recordsPool := sync.Pool{New: func() interface{} {
+		entries := make([]uint64, 0, linesChunkLen)
+		return entries
+	}}
+
+	// Mutex needed to avoid resource contention between the coroutines
+	mutex := &sync.Mutex{}
+	wg := sync.WaitGroup{}
+
+	b.stat.StageWork("Hashing", b.num)
+	// Read first line
+	scanner.Scan()
+	for {
+		lines = append(lines, scanner.Text())
+		willScan := scanner.Scan()
+
+		if len(lines) == linesChunkLen || !willScan {
+			linesToProcess := lines
+			wg.Add(len(linesToProcess))
+
+			go func() {
+				// Clear data
+				records := recordsPool.Get().([]uint64)[:0]
+
+				for _, line := range linesToProcess {
+					if len(line) < 16 {
+						log.Trace().Msgf("Skipping line %s", line)
+					} else {
+						hash := U64FromHex([]byte(line)[0:16])
+						records = append(records, hash)
+					}
+				}
+
+				linesPool.Put(linesToProcess)
+				// Avoid resource contention
+				mutex.Lock()
+
+				for _, hash := range records {
+					b.stat.Incr()
+					b.add(hash)
+				}
+
+				mutex.Unlock()
+				recordsPool.Put(records)
+
+				wg.Add(-len(records))
+			}()
+
+			// Clear slice
+			lines = linesPool.Get().([]string)[:0]
+		}
+
+		if !willScan {
+			break
+		}
+	}
+	// Wait for all coroutines to finish
+	wg.Wait()
+
+	// Create the GCS file
+	if err := b.finalize(); err != nil {
+		return err
+	}
+
+	b.stat.Done()
+	return nil
+}
+
 // Add adds a new item to the database
-func (b *Builder) Add(entry uint64) {
+func (b *builder) add(entry uint64) {
 	b.values = append(b.values, entry)
 }
 
 // Finalize the construction of the database
-func (b *Builder) Finalize(stat *Status) error {
+func (b *builder) finalize() error {
 	// Adjust with the actual number of items, not the estimate
 	b.num = uint64(len(b.values))
-	log.Debug().Msgf("Index has %d items", b.num)
+	log.Debug().Msgf("Database will have %d items", b.num)
 
 	np := b.num * b.probability
 
-	stat.Stage("Normalise")
+	b.stat.Stage("Normalise")
 	for i, v := range b.values {
 		b.values[i] = v % np
 	}
 
-	stat.Stage("Sort")
+	b.stat.Stage("Sort")
 	sorty.SortSlice(b.values)
 
-	stat.Stage("Deduplicate")
+	b.stat.Stage("Deduplicate")
 	b.values = dedup(b.values)
 
 	indexPoints := b.num / b.indexGranularity
-
 	index := make([]indexPair, 0, indexPoints)
-	encoder := NewEncoder(b.inner, b.probability)
-	stat.StageWork("Encode", b.num)
+
+	encoder := newEncoder(b.out, b.probability)
+	b.stat.StageWork("Encode", b.num)
 
 	// Add a 0 at the start
 	index = append(index, indexPair{0, 0})
@@ -85,12 +190,10 @@ func (b *Builder) Finalize(stat *Status) error {
 		totalBits += d
 
 		if b.indexGranularity > 0 && i > 0 && i%b.indexGranularity == 0 {
-			// Check if this is actually a correct translation of this
-			// https://github.com/Freaky/gcstool/blob/6c09458986e9494cac0fee595d1f3aee6ea73636/src/gcs.rs#L116
 			index = append(index, indexPair{value: b.values[i+1], bitPos: totalBits})
 		}
 
-		stat.Incr()
+		b.stat.Incr()
 	}
 
 	// encode a delimiting zero
@@ -107,14 +210,15 @@ func (b *Builder) Finalize(stat *Status) error {
 
 	endOfData := (totalBits + wr) / 8
 	log.Debug().Msgf("End of data: %d", endOfData)
-	stat.Stage("Index")
+	b.stat.Stage("Write Index")
+	log.Debug().Msgf("Index will have %d items", len(index))
 
 	// Write the index: pairs of u64's (value, bit index)
 	for _, pair := range index {
-		if _, err = (*b.inner).Write(toFixedBytes(pair.value)); err != nil {
+		if _, err = b.out.Write(toFixedBytes(pair.value)); err != nil {
 			return err
 		}
-		if _, err = (*b.inner).Write(toFixedBytes(pair.bitPos)); err != nil {
+		if _, err = b.out.Write(toFixedBytes(pair.bitPos)); err != nil {
 			return err
 		}
 	}
@@ -122,19 +226,19 @@ func (b *Builder) Finalize(stat *Status) error {
 	// Write our footer
 	// N, P, index position in bytes, index size in entries [magic]
 	// 5*8=40 bytes
-	if _, err = (*b.inner).Write(toFixedBytes(b.num)); err != nil {
+	if _, err = b.out.Write(toFixedBytes(b.num)); err != nil {
 		return err
 	}
-	if _, err = (*b.inner).Write(toFixedBytes(b.probability)); err != nil {
+	if _, err = b.out.Write(toFixedBytes(b.probability)); err != nil {
 		return err
 	}
-	if _, err = (*b.inner).Write(toFixedBytes(endOfData)); err != nil {
+	if _, err = b.out.Write(toFixedBytes(endOfData)); err != nil {
 		return err
 	}
-	if _, err = (*b.inner).Write(toFixedBytes(uint64(len(index)))); err != nil {
+	if _, err = b.out.Write(toFixedBytes(uint64(len(index)))); err != nil {
 		return err
 	}
-	if _, err = b.inner.Write([]byte(gcsMagic)); err != nil {
+	if _, err = b.out.Write([]byte(gcsMagic)); err != nil {
 		return err
 	}
 
@@ -142,7 +246,7 @@ func (b *Builder) Finalize(stat *Status) error {
 }
 
 type Reader struct {
-	inner       *BitReader
+	inner       *bitReader
 	num         uint64
 	probability uint64
 	endOfData   uint64
@@ -153,7 +257,7 @@ type Reader struct {
 
 func NewReader(file *os.File) *Reader {
 	return &Reader{
-		inner:       NewBitReader(file),
+		inner:       newBitReader(file),
 		num:         0,
 		probability: 0,
 		endOfData:   0,
@@ -233,7 +337,8 @@ func (r *Reader) Initialize() error {
 		r.index = append(r.index, indexPair{value: val, bitPos: bitPos})
 	}
 
-	log.Info().Msgf("Ready for queries on %d items with a 1 in %d false-positive rate.", r.num, r.probability)
+	p := message.NewPrinter(language.English)
+	log.Info().Msgf("Ready for queries on %s items with a 1 in %s false-positive rate.", p.Sprintf("%d", r.num), p.Sprintf("%d", r.probability))
 	return nil
 }
 
@@ -284,49 +389,4 @@ func (r *Reader) Exists(target uint64) (bool, error) {
 	}
 
 	return last == h, nil
-}
-
-func toFixedBytes(content uint64) []byte {
-	buf := make([]byte, 8)
-	binary.BigEndian.PutUint64(buf, content)
-	return buf
-}
-
-func dedup(slice []uint64) []uint64 {
-	if len(slice) < 2 {
-		return slice
-	}
-
-	var e = 1
-	for i := 1; i < len(slice); i++ {
-		if slice[i] == slice[i-1] {
-			continue
-		}
-		slice[e] = slice[i]
-		e++
-	}
-
-	return slice[:e]
-}
-
-func binarySearch(index []indexPair, value uint64) (int, int) {
-	r := -1 // not found
-	start := 0
-	end := len(index) - 1
-	last := start
-	for start <= end {
-		last = start + (end-start)/2
-		val := index[last]
-
-		if val.value == value {
-			r = last // found
-			break
-		} else if value > val.value {
-			start = last + 1
-		} else {
-			end = last - 1
-		}
-	}
-
-	return r, last
 }

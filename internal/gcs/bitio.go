@@ -9,34 +9,34 @@ import (
 
 // https://github.com/Freaky/rust-bitrw
 
-// BitReader adds bit-level reading to os.File specifically.
+// bitReader adds bit-level reading to os.File specifically.
 // TODO Maybe implement using io.Reader?
-type BitReader struct {
+type bitReader struct {
 	inner  *os.File
 	buffer []byte
 	unused uint8
 }
 
-func NewBitReader(w *os.File) *BitReader {
-	return &BitReader{inner: w, buffer: make([]byte, 1), unused: 0}
+func newBitReader(w *os.File) *bitReader {
+	return &bitReader{inner: w, buffer: make([]byte, 1), unused: 0}
 }
 
-// Reset the internal state of the BitReader. The next read will load fresh
+// Reset the internal state of the bitReader. The next read will load fresh
 // data from the current bitPos of the reader and start from the beginning
 // of the first byte returned.
-func (r *BitReader) Reset() {
+func (r *bitReader) Reset() {
 	r.buffer[0] = 0
 	r.unused = 0
 }
 
 // ReadBit reads a single bit from the reader.
-func (r *BitReader) ReadBit() (uint8, error) {
+func (r *bitReader) ReadBit() (uint8, error) {
 	bit, err := r.ReadBits(1)
 	return uint8(bit), err
 }
 
 // ReadBits reads up to 64 bits from the reader.
-func (r *BitReader) ReadBits(n uint8) (uint64, error) {
+func (r *bitReader) ReadBits(n uint8) (uint64, error) {
 	// Read up to 64 bits to the buffer
 	if n > 64 {
 		return 0, errors.New("cannot read more than 64 bits at a time")
@@ -68,7 +68,7 @@ func (r *BitReader) ReadBits(n uint8) (uint64, error) {
 
 // Seek to the given *bit* bitPos in the file.  Currently, only
 // io.SeekStart and io.SeekEnd with negative offsets are supported.
-func (r *BitReader) Seek(offset int64, whence int) (ret int64, err error) {
+func (r *bitReader) Seek(offset int64, whence int) (ret int64, err error) {
 	switch whence {
 	case io.SeekStart:
 		r.Reset()
@@ -108,9 +108,9 @@ func (r *BitReader) Seek(offset int64, whence int) (ret int64, err error) {
 	}
 }
 
-// IntoInner unwraps this BitReader, returning the underlying io.File and discarding any
+// IntoInner unwraps this bitReader, returning the underlying io.File and discarding any
 // unread buffered bits.
-func (r *BitReader) IntoInner() *os.File {
+func (r *bitReader) IntoInner() *os.File {
 	return r.inner
 }
 
@@ -120,16 +120,16 @@ type writerAndByteWriter interface {
 	io.ByteWriter
 }
 
-// BitWriter adds bit-level writing to any io.Writer.
-type BitWriter struct {
+// bitWriter adds bit-level writing to any io.Writer.
+type bitWriter struct {
 	inner   writerAndByteWriter
 	wrapper *bufio.Writer // wrapper bufio.Writer if the target does not implement io.ByteWriter
 	buffer  uint8         // unwritten bits are stored here
 	unused  uint8         // number of unwritten bits in cache
 }
 
-func NewBitWriter(out io.Writer) *BitWriter {
-	w := &BitWriter{}
+func newBitWriter(out io.Writer) *bitWriter {
+	w := &bitWriter{}
 	var ok bool
 	w.inner, ok = out.(writerAndByteWriter)
 	if !ok {
@@ -140,7 +140,7 @@ func NewBitWriter(out io.Writer) *BitWriter {
 }
 
 // WriteBit writes a single bit to the inner.
-func (w *BitWriter) WriteBit(bit uint8) (uint64, error) {
+func (w *bitWriter) WriteBit(bit uint8) (uint64, error) {
 	if bit > 0 {
 		return 0, errors.New("bit has no content")
 	}
@@ -149,7 +149,7 @@ func (w *BitWriter) WriteBit(bit uint8) (uint64, error) {
 }
 
 // WriteBits Writes up to 64 bits to the inner.
-func (w *BitWriter) WriteBits(n uint8, r uint64) (uint64, error) {
+func (w *bitWriter) WriteBits(n uint8, r uint64) (uint64, error) {
 	// Write up to 64 bits to the buffer
 	if n > 64 {
 		return 0, errors.New("cannot write more than 64 bits at a time")
@@ -177,7 +177,7 @@ func (w *BitWriter) WriteBits(n uint8, r uint64) (uint64, error) {
 // Or:
 //
 //	err := w.WriteBits(0x1234, 8)            // bits higher than the 8th are ignored here
-func (w *BitWriter) writeBitsInternal(n uint8, r uint64) (uint64, error) {
+func (w *bitWriter) writeBitsInternal(n uint8, r uint64) (uint64, error) {
 	newBits := w.unused + n
 	if newBits < 8 {
 		// r fits into buffer, no write will occur to file
@@ -223,7 +223,7 @@ func (w *BitWriter) writeBitsInternal(n uint8, r uint64) (uint64, error) {
 // so next write will start/go into a new byte.
 // If there are cached bits, they are first written to the output.
 // Returns the number of skipped (unset but still written) bits.
-func (w *BitWriter) FlushBits() (skipped uint64, err error) {
+func (w *bitWriter) FlushBits() (skipped uint64, err error) {
 	if w.unused > 0 {
 		if err := w.inner.WriteByte(w.buffer); err != nil {
 			return 0, err
@@ -245,7 +245,7 @@ func (w *BitWriter) FlushBits() (skipped uint64, err error) {
 // always end on a byte boundary.
 //
 // This also flushes the underlying inner.
-func (w *BitWriter) Flush() (uint64, error) {
+func (w *bitWriter) Flush() (uint64, error) {
 	wr, err := w.FlushBits()
 	if err != nil {
 		return wr, err
