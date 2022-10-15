@@ -70,6 +70,8 @@ func initHttpClient() *retryablehttp.Client {
 }
 
 func (d *Downloader) ProcessRanges() error {
+	util.CheckDiskSpace(d.fileName, 40)
+
 	s := util.Stats()
 	defer s()
 
@@ -90,7 +92,6 @@ func (d *Downloader) ProcessRanges() error {
 	}
 	defer downloadTasks.Close()
 
-	log.Warn().Msgf("IMPORTANT: The haveibeenpwned password file is very large, please ensure you have at least 40GiB free for the download.")
 	log.Info().Msgf("Download Pwned Passwords SHA1 Hashes in file %s with %d threads, ^C to stop the process", d.fileName, threads)
 	time.Sleep(10 * time.Second)
 	log.Info().Msg("Starting process. This might take a while, be patient :)")

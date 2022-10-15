@@ -58,13 +58,11 @@ func NewBuilder(in *os.File, out *os.File, probability uint64, indexGranularity 
 // Process creates the gcs file using the inputs in the builder
 // Inspired by https://marcellanz.com/post/file-read-challenge/
 func (b *builder) Process() error {
+	util.CheckRam(b.num)
+
 	s := util.Stats()
 	defer s()
 
-	log.Warn().Msgf("Estimated memory use for %d items %d MiB", b.num, (b.num*8)/(1024*1024))
-	log.Warn().Msgf("This process will cause disk swapping and general slowness if your "+
-		"current system memory is not at least %d MiB. ^C now to stop the process.",
-		(b.num*8)/(1024*1024))
 	time.Sleep(10 * time.Second)
 
 	b.stat = newStatus()

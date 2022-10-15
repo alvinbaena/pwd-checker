@@ -42,7 +42,7 @@ func (s *status) StageWork(name string, work uint64) {
 func (s *status) PrintStatus() {
 	elapsed := time.Since(s.start)
 	log.Info().Msgf(
-		"%s: %d of %d, %.2f%%, %.0f/sec",
+		"%s: %d of %d, %.2f%%, %.0f/s",
 		*s.stageName,
 		s.doneCount,
 		s.workCount,

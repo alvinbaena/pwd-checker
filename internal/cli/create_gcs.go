@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	_ "net/http/pprof"
 	"os"
+	"path/filepath"
 	"pwd-checker/internal/gcs"
 	"pwd-checker/internal/util"
 )
@@ -46,14 +47,19 @@ func createCommand() error {
 		}
 	}(file)
 
+	abs, err := filepath.Abs(outFile)
+	if err != nil {
+		log.Fatal().Err(err).Msgf("Could not get absolute path of file")
+	}
+
 	if !overwrite {
-		_, err = os.Stat(outFile)
+		_, err = os.Stat(abs)
 		if !os.IsNotExist(err) {
-			return fmt.Errorf("file exists and overwrite flag is not set")
+			log.Fatal().Msgf("file %s exists and overwrite flag is not set", outFile)
 		}
 	}
 
-	out, err := os.Create(outFile)
+	out, err := os.Create(abs)
 	if err != nil {
 		return err
 	}
