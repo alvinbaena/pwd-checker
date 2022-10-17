@@ -1,0 +1,10 @@
+{
+  "name": "pwd-checker",
+  "version": "1.0.0",
+  "devDependencies": {
+    "@types/k6": "^0.39.1"
+  },
+  "dependencies": {
+    "k6": "^0.0.0"
+  }
+}

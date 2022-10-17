@@ -244,7 +244,7 @@ func (b *builder) finalize() error {
 }
 
 type Reader struct {
-	inner       *bitReader
+	fileName    string
 	num         uint64
 	probability uint64
 	endOfData   uint64
@@ -253,9 +253,9 @@ type Reader struct {
 	log2p       uint8
 }
 
-func NewReader(file *os.File) *Reader {
+func NewReader(fileName string) *Reader {
 	return &Reader{
-		inner:       newBitReader(file),
+		fileName:    fileName,
 		num:         0,
 		probability: 0,
 		endOfData:   0,
@@ -266,19 +266,31 @@ func NewReader(file *os.File) *Reader {
 }
 
 func (r *Reader) Initialize() error {
-	if _, err := r.inner.Inner().Seek(-40, io.SeekEnd); err != nil {
+	file, err := os.OpenFile(r.fileName, os.O_RDONLY, 444)
+	if err != nil {
+		return err
+	}
+
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			log.Fatal().Err(err).Msg("Error closing GCS file file")
+		}
+	}(file)
+
+	if _, err = file.Seek(-40, io.SeekEnd); err != nil {
 		return err
 	}
 
 	buf := make([]byte, 8)
-	if _, err := r.inner.Inner().Read(buf); err != nil {
+	if _, err = file.Read(buf); err != nil {
 		return err
 	}
 	r.num = binary.BigEndian.Uint64(buf)
 	log.Debug().Msgf("Number of items: %d", r.num)
 
 	buf = make([]byte, 8)
-	if _, err := r.inner.Inner().Read(buf); err != nil {
+	if _, err = file.Read(buf); err != nil {
 		return err
 	}
 	r.probability = binary.BigEndian.Uint64(buf)
@@ -288,21 +300,21 @@ func (r *Reader) Initialize() error {
 	log.Debug().Msgf("Log2: %d", r.log2p)
 
 	buf = make([]byte, 8)
-	if _, err := r.inner.Inner().Read(buf); err != nil {
+	if _, err = file.Read(buf); err != nil {
 		return err
 	}
 	r.endOfData = binary.BigEndian.Uint64(buf)
 	log.Debug().Msgf("End of Data: %d", r.endOfData)
 
 	buf = make([]byte, 8)
-	if _, err := r.inner.Inner().Read(buf); err != nil {
+	if _, err = file.Read(buf); err != nil {
 		return err
 	}
 	r.indexLen = binary.BigEndian.Uint64(buf)
 	log.Debug().Msgf("Index Length: %d", r.indexLen)
 
 	buf = make([]byte, 8)
-	if _, err := r.inner.Inner().Read(buf); err != nil {
+	if _, err = file.Read(buf); err != nil {
 		return err
 	}
 
@@ -310,7 +322,7 @@ func (r *Reader) Initialize() error {
 		return errors.New("not a GCS File")
 	}
 
-	if _, err := r.inner.Inner().Seek(int64(r.endOfData), io.SeekStart); err != nil {
+	if _, err = file.Seek(int64(r.endOfData), io.SeekStart); err != nil {
 		return err
 	}
 
@@ -321,13 +333,13 @@ func (r *Reader) Initialize() error {
 	log.Info().Msg("Initializing database")
 	for i := uint64(0); i < r.indexLen; i++ {
 		buf = make([]byte, 8)
-		if _, err := r.inner.Inner().Read(buf); err != nil {
+		if _, err = file.Read(buf); err != nil {
 			return err
 		}
 		val := binary.BigEndian.Uint64(buf)
 
 		buf = make([]byte, 8)
-		if _, err := r.inner.Inner().Read(buf); err != nil {
+		if _, err = file.Read(buf); err != nil {
 			return err
 		}
 		bitPos := binary.BigEndian.Uint64(buf)
@@ -341,6 +353,21 @@ func (r *Reader) Initialize() error {
 }
 
 func (r *Reader) Exists(target uint64) (bool, error) {
+	s := util.Stats()
+	defer s()
+
+	file, err := os.OpenFile(r.fileName, os.O_RDONLY, 444)
+	if err != nil {
+		return false, err
+	}
+
+	defer func(file *os.File) {
+		err = file.Close()
+		if err != nil {
+			log.Fatal().Err(err).Msg("Error closing GCS file file")
+		}
+	}(file)
+
 	h := target % (r.num * r.probability)
 	// Try to find exact match
 	exact, closest := binarySearch(r.index, h)
@@ -351,7 +378,12 @@ func (r *Reader) Exists(target uint64) (bool, error) {
 	// We have to get the low value, not the latest if the item is not found.
 	// This is equivalent to rust's saturating_sub(1) function on binary_search_by_key
 	lastEntry := r.index[closest-1]
-	if _, err := r.inner.Seek(int64(lastEntry.bitPos), io.SeekStart); err != nil {
+
+	// To avoid problems on concurrent file access
+	//r.mutex.Lock()
+	//defer r.mutex.Unlock()
+	reader := newBitReader(file)
+	if _, err = reader.Seek(int64(lastEntry.bitPos), io.SeekStart); err != nil {
 		return false, err
 	}
 
@@ -360,7 +392,7 @@ func (r *Reader) Exists(target uint64) (bool, error) {
 		diff := uint64(0)
 
 		for {
-			re, err := r.inner.ReadBit()
+			re, err := reader.ReadBit()
 			if err != nil {
 				return false, err
 			}
@@ -372,7 +404,7 @@ func (r *Reader) Exists(target uint64) (bool, error) {
 			}
 		}
 
-		re, err := r.inner.ReadBits(r.log2p)
+		re, err := reader.ReadBits(r.log2p)
 		if err != nil {
 			return false, err
 		}

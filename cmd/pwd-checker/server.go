@@ -1,12 +1,12 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"github.com/gin-contrib/logger"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/net/context"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,11 +19,6 @@ func main() {
 	cfg, err := api.LoadConfig()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error loading configuration")
-	}
-
-	file, err := os.Open(cfg.GcsFile)
-	if err != nil {
-		log.Fatal().Err(err).Msg("error initializing Server")
 	}
 
 	if !cfg.Debug {
@@ -40,7 +35,7 @@ func main() {
 	v1 := router.Group("/v1")
 
 	pwned := v1.Group("/check")
-	if err = api.RegisterQueryApi(pwned, file); err != nil {
+	if err = api.RegisterQueryApi(pwned, cfg.GcsFile); err != nil {
 		log.Fatal().Err(err).Msg("error initializing Query API")
 	}
 
@@ -56,6 +51,10 @@ func main() {
 		}
 	}()
 
+	gracefulShutdown(srv)
+}
+
+func gracefulShutdown(srv *http.Server) {
 	// Wait for interrupt signal to gracefully shut down the server with
 	// a timeout.
 	quit := make(chan os.Signal)
@@ -68,15 +67,13 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-	if err = srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(ctx); err != nil {
 		log.Warn().Err(err).Msg("Server Shutdown.")
 	}
 	// catching ctx.Done(). timeout of 5 seconds.
 	select {
 	case <-ctx.Done():
-		if err = file.Close(); err != nil {
-			log.Error().Err(err).Msg("Error closing file")
-		}
+		// Nothing for now
 	}
 	log.Info().Msg("Server exiting...")
 }

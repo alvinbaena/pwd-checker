@@ -1,0 +1,36 @@
+version: "3"
+
+services:
+  statsd_exporter:
+    container_name: statsd_exporter
+    image: quay.io/prometheus/statsd-exporter
+    ports:
+      - "9102:9102"
+      - "8125:8125/udp"
+    volumes:
+      - type: bind
+        source: ./statsd_exporter.yaml
+        target: /etc/statsd_exporter.yaml
+    command:
+      - "--statsd.listen-udp=:8125"
+      - "--statsd.mapping-config=/etc/statsd_exporter.yaml"
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus
+    depends_on:
+      - statsd_exporter
+    ports:
+      - "9090:9090"
+    volumes:
+      - type: bind
+        source: ./prometheus.yaml
+        target: /etc/prometheus/prometheus.yml
+
+  grafana:
+    container_name: grafana
+    image: grafana/grafana-oss
+    depends_on:
+      - prometheus
+    ports:
+      - "4020:3000"

@@ -8,7 +8,6 @@ import (
 	"github.com/manifoldco/promptui"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"os"
 	"pwd-checker/internal/gcs"
 	"pwd-checker/internal/util"
 	"regexp"
@@ -49,23 +48,12 @@ func init() {
 	rootCmd.AddCommand(queryCmd)
 }
 
-func queryCommand(password string) error {
+func queryCommand(password string) (err error) {
 	util.ApplyCliSettings(verbose, profile, pprofPort)
 
-	file, err := os.Open(inputFile)
-	if err != nil {
-		return err
-	}
-
-	defer func(file *os.File) {
-		if err = file.Close(); err != nil {
-			log.Error().Err(err).Msg("Error closing GCS Pwned Passwords file")
-		}
-	}(file)
-
-	searcher := gcs.NewReader(file)
+	searcher := gcs.NewReader(inputFile)
 	if err = searcher.Initialize(); err != nil {
-		return err
+		return
 	}
 
 	var hash uint64
@@ -113,13 +101,13 @@ func queryCommand(password string) error {
 	} else {
 		hash, err = processPassword(password)
 		if err != nil {
-			return err
+			return
 		}
 
 		return queryDatabase(hash, searcher)
 	}
 
-	return nil
+	return
 }
 
 func runInteractiveSession(prompt promptui.Prompt, searcher *gcs.Reader) error {

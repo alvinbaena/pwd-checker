@@ -5,7 +5,6 @@
     <envs>
       <env name="GCS_FILE" value="D:\Work\pwned-go-p100m.gcs" />
       <env name="PORT" value="3100" />
-      <env name="DEBUG" value="true" />
     </envs>
     <EXTENSION ID="net.ashald.envfile">
       <option name="IS_ENABLED" value="false" />

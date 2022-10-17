@@ -6,7 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/nbutton23/zxcvbn-go"
 	"net/http"
-	"os"
 	"pwd-checker/internal/gcs"
 	"regexp"
 	"strings"
@@ -68,8 +67,8 @@ func (q *queryApi) checkHash(c *gin.Context) {
 	c.JSON(http.StatusOK, queryResponse{Pwned: exists})
 }
 
-func RegisterQueryApi(group *gin.RouterGroup, file *os.File) error {
-	searcher := gcs.NewReader(file)
+func RegisterQueryApi(group *gin.RouterGroup, fileName string) error {
+	searcher := gcs.NewReader(fileName)
 	if err := searcher.Initialize(); err != nil {
 		return err
 	}
