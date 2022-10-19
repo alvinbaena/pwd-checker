@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"runtime"
 	"strings"
+	"time"
 )
 
 func Stats() func() {
@@ -50,10 +51,12 @@ func CheckRam(items uint64) {
 		}
 
 		log.Info().Msgf("^C now to stop the process.")
+		time.Sleep(10 * time.Second)
 	} else {
 		log.Warn().Msgf("Estimated memory use for %d items %d MiB", items, required)
 		log.Warn().Msgf("This process will cause disk swapping and general slowness if your "+
 			"current system memory is not at least %d MiB. ^C now to stop the process.", required)
+		time.Sleep(10 * time.Second)
 	}
 }
 

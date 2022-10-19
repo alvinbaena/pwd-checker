@@ -29,6 +29,7 @@ func newStatus() *status {
 	}
 }
 
+// BeginProgress reports the progress of the download every 10 seconds.
 func (s *status) BeginProgress() {
 	go func() {
 		for {

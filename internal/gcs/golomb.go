@@ -19,6 +19,7 @@ func newEncoder(w *os.File, probability uint64) *golombEncoder {
 	}
 }
 
+// Encode golomb encodes the value and writes it to a file
 func (e *golombEncoder) Encode(value uint64) (uint64, error) {
 	q := value / e.probability
 	r := value % e.probability

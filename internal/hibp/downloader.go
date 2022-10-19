@@ -42,8 +42,10 @@ func NewDownloader(out *os.File, parallelism int) *Downloader {
 
 func initHttpClient() *retryablehttp.Client {
 	client := retryablehttp.NewClient()
+	// Too much garbage in the logs, it slowed the download too much.
 	client.Logger = nil
 
+	// Retry Max 10 times on protocol errors. Any other are just reported and not retried.
 	client.RetryMax = 10
 
 	client.HTTPClient = &http.Client{
@@ -60,7 +62,8 @@ func initHttpClient() *retryablehttp.Client {
 			IdleConnTimeout:       10 * time.Second,
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
-			// HTTP/2 is "better" but only establishes one connection. Disabling it is much faster
+			// HTTP/2 is "better" but only establishes one connection. Disabling it is much faster.
+			// It also introduced some read errors when getting the responses, so HTTP/1.1 it is.
 			ForceAttemptHTTP2:   false,
 			MaxIdleConnsPerHost: runtime.GOMAXPROCS(0) + 1,
 		},
@@ -79,9 +82,12 @@ func (d *Downloader) ProcessRanges() error {
 	if d.parallelism > 0 {
 		threads = d.parallelism
 	} else {
+		// About 8 times nets me a sustained download of about 150 Mbit/s, so it seems like a good
+		// default to set
 		threads = runtime.NumCPU() * 8
 	}
 
+	// This is a bounded thread pool. I just didn't want to implement it myself...
 	downloadTasks, err := executor.New(executor.Config{
 		ReqPerSeconds: 0,
 		QueueSize:     2 * threads,
@@ -98,7 +104,7 @@ func (d *Downloader) ProcessRanges() error {
 	d.stat = newStatus()
 	d.stat.BeginProgress()
 
-	// Start downloading ranges
+	// Start downloading ranges concurrently from 00000 to FFFFF
 	for i := 0; i < 1024*1024; i++ {
 		prefix := getHashRange(i)
 		if err = downloadTasks.Publish(d.ProcessRange, prefix); err != nil {
@@ -185,7 +191,7 @@ func (d *Downloader) downloadRange(prefix string) ([]byte, error) {
 }
 
 func (d *Downloader) writeRangeToFile(prefix string, r []byte) error {
-	// Synchronize file writes
+	// Synchronize file writes, we don't want intersected lines in the file.
 	d.wm.Lock()
 	defer d.wm.Unlock()
 

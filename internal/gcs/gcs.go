@@ -13,7 +13,6 @@ import (
 	"os"
 	"pwd-checker/internal/util"
 	"sync"
-	"time"
 )
 
 // https://github.com/rasky/gcs
@@ -41,7 +40,7 @@ type builder struct {
 // probability is the False positive rate for queries, 1-in-p.
 // indexGranularity is the entries per index point (16 bytes each).
 func NewBuilder(in *os.File, out *os.File, probability uint64, indexGranularity uint64) *builder {
-	// Estimate the amount of lines in the passwords file. It's pretty accurate, <= 1% error rate
+	// Estimate the amount of lines in the passwords file. It's pretty accurate, <= 1% error rate.
 	// 847223402 is the exact number of lines for v8 file
 	estimatedLines := estimateFileLines(in)
 
@@ -56,14 +55,13 @@ func NewBuilder(in *os.File, out *os.File, probability uint64, indexGranularity 
 }
 
 // Process creates the gcs file using the inputs in the builder
-// Inspired by https://marcellanz.com/post/file-read-challenge/
+// Concurrent file read inspired by https://marcellanz.com/post/file-read-challenge/
 func (b *builder) Process() error {
+	// Stop the process if not enough ram to actually hold all the entries read.
 	util.CheckRam(b.num)
 
 	s := util.Stats()
 	defer s()
-
-	time.Sleep(10 * time.Second)
 
 	b.stat = newStatus()
 	log.Info().Msg("Starting process. This might take a while, be patient :)")
@@ -254,7 +252,7 @@ type Reader struct {
 }
 
 func NewReader(fileName string) *Reader {
-	return &Reader{
+	r := &Reader{
 		fileName:    fileName,
 		num:         0,
 		probability: 0,
@@ -263,9 +261,13 @@ func NewReader(fileName string) *Reader {
 		index:       make([]indexPair, 0, 0),
 		log2p:       0,
 	}
+
+	return r
 }
 
+// Initialize only loads the database index into memory. This does not load the whole file in RAM.
 func (r *Reader) Initialize() error {
+	// Only open the file for initialization.
 	file, err := os.OpenFile(r.fileName, os.O_RDONLY, 444)
 	if err != nil {
 		return err
@@ -278,6 +280,7 @@ func (r *Reader) Initialize() error {
 		}
 	}(file)
 
+	// Reads the footer that the file should have. 40 bytes.
 	if _, err = file.Seek(-40, io.SeekEnd); err != nil {
 		return err
 	}
@@ -322,6 +325,7 @@ func (r *Reader) Initialize() error {
 		return errors.New("not a GCS File")
 	}
 
+	// Move the file pointer where the index starts
 	if _, err = file.Seek(int64(r.endOfData), io.SeekStart); err != nil {
 		return err
 	}
@@ -356,6 +360,16 @@ func (r *Reader) Exists(target uint64) (bool, error) {
 	s := util.Stats()
 	defer s()
 
+	// By opening a file pointer everytime we check if a password is pwned, we improve performance
+	// by *a lot*. The tradeoff is the cost in CPU cycles.
+	//
+	// For example, by only having a single file pointer and 500 concurrent requests, the CPU usage
+	// (8c/16t) was about 45% but the response time for the requests start taking 100s of seconds due
+	// to the synchronization for the file access. With a file pointer per request the response
+	// times never go above 10s, of course with 100% CPU usage in all cores.
+	//
+	// This is a solution that works "well enough". I probably should change it to something more CPU
+	// efficient. Less power used, less global warming I guess...
 	file, err := os.OpenFile(r.fileName, os.O_RDONLY, 444)
 	if err != nil {
 		return false, err
@@ -369,24 +383,22 @@ func (r *Reader) Exists(target uint64) (bool, error) {
 	}(file)
 
 	h := target % (r.num * r.probability)
-	// Try to find exact match
+	// Maybe the computed hash is present exactly as is on the index.
 	exact, closest := binarySearch(r.index, h)
 	if exact > 0 {
 		return true, nil
 	}
 
-	// We have to get the low value, not the latest if the item is not found.
+	// We have to get the closest low value, not the binary latest if the item is not found.
 	// This is equivalent to rust's saturating_sub(1) function on binary_search_by_key
 	lastEntry := r.index[closest-1]
 
-	// To avoid problems on concurrent file access
-	//r.mutex.Lock()
-	//defer r.mutex.Unlock()
 	reader := newBitReader(file)
 	if _, err = reader.Seek(int64(lastEntry.bitPos), io.SeekStart); err != nil {
 		return false, err
 	}
 
+	// Try to find the probable match from the closest element found in the index.
 	last := lastEntry.value
 	for last < h {
 		diff := uint64(0)
