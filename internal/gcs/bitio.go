@@ -158,7 +158,7 @@ func (w *bitWriter) WriteBits(n uint8, r uint64) (uint64, error) {
 	return w.writeBitsInternal(n, r&(1<<n-1))
 }
 
-// writeBitsInternal writes inner the n lowest bits of r.
+// writeBitsInternal writes inner the 'n' lowest bits of r.
 //
 // r must not have bits set at n or higher positions (zero indexed).
 // If r might not satisfy this, a mask must be explicitly applied

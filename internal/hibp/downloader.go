@@ -82,8 +82,8 @@ func (d *Downloader) ProcessRanges() error {
 	if d.parallelism > 0 {
 		threads = d.parallelism
 	} else {
-		// About 8 times nets me a sustained download of about 150 Mbit/s, so it seems like a good
-		// default to set
+		// About 8 times nets me a sustained download of about 150 Mbit/s (96 threads), so it seems
+		// like a good default to set
 		threads = runtime.NumCPU() * 8
 	}
 

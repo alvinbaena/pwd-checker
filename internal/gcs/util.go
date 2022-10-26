@@ -9,6 +9,8 @@ import (
 	"strconv"
 )
 
+const gcsMagic = "[GCS:v0]"
+
 func U64FromHex(src []byte) uint64 {
 	result := uint64(0)
 	for _, c := range src {

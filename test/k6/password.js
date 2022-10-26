@@ -18,20 +18,20 @@ export const options = {
         {duration: '1m', target: 0}, // ramp-down to 0 users
       ],
     },
-    stress: {
-      startTime: '6m',
-      executor: 'ramping-vus',
-      startVUs: 0,
-      stages: [
-        {duration: '10s', target: 100}, // simulate ramp-up of traffic from 1 to 100 users over 10 seconds.
-        {duration: '1m', target: 100}, // stay at 100 users for 1 minute
-        {duration: '10s', target: 1400}, // spike to 1400 users
-        {duration: '3m', target: 1400}, // stay at 1400 for 3 minutes
-        {duration: '10s', target: 10}, // scale down. Recovery stage.
-        {duration: '1m', target: 10},
-        {duration: '1m', target: 0}, // Wait a bit more in case requests are still pending
-      ]
-    }
+    // stress: {
+    //   // startTime: '6m',
+    //   executor: 'ramping-vus',
+    //   startVUs: 0,
+    //   stages: [
+    //     {duration: '10s', target: 100}, // simulate ramp-up of traffic from 1 to 100 users over 10 seconds.
+    //     {duration: '1m', target: 100}, // stay at 100 users for 1 minute
+    //     {duration: '10s', target: 1400}, // spike to 1400 users
+    //     {duration: '3m', target: 1400}, // stay at 1400 for 3 minutes
+    //     {duration: '10s', target: 10}, // scale down. Recovery stage.
+    //     {duration: '1m', target: 10},
+    //     {duration: '1m', target: 0}, // Wait a bit more in case requests are still pending
+    //   ]
+    // }
   },
   thresholds: {
     http_req_failed: ['rate<0.01'], // http errors should be less than 1%
