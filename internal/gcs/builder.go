@@ -18,7 +18,7 @@ type indexPair struct {
 	bitPos uint64
 }
 
-type builder struct {
+type Builder struct {
 	in               *os.File
 	out              *os.File
 	num              uint64
@@ -32,12 +32,12 @@ type builder struct {
 //
 // probability is the False positive rate for queries, 1-in-p.
 // indexGranularity is the entries per index point (16 bytes each).
-func NewBuilder(in *os.File, out *os.File, probability uint64, indexGranularity uint64) *builder {
+func NewBuilder(in *os.File, out *os.File, probability uint64, indexGranularity uint64) *Builder {
 	// Estimate the amount of lines in the passwords file. It's pretty accurate, <= 1% error rate.
 	// 847223402 is the exact number of lines for v8 file
 	estimatedLines := estimateFileLines(in)
 
-	return &builder{
+	return &Builder{
 		in:               in,
 		out:              out,
 		num:              estimatedLines,
@@ -49,7 +49,7 @@ func NewBuilder(in *os.File, out *os.File, probability uint64, indexGranularity 
 
 // Process creates the gcs file using the inputs in the builder
 // Concurrent file read inspired by https://marcellanz.com/post/file-read-challenge/
-func (b *builder) Process() error {
+func (b *Builder) Process() error {
 	// Stop the process if not enough ram to actually hold all the entries read.
 	util.CheckRam(b.num)
 
@@ -138,12 +138,12 @@ func (b *builder) Process() error {
 }
 
 // Add adds a new item to the database
-func (b *builder) add(entry uint64) {
+func (b *Builder) add(entry uint64) {
 	b.values = append(b.values, entry)
 }
 
 // Finalize the construction of the database
-func (b *builder) finalize() error {
+func (b *Builder) finalize() error {
 	// Adjust with the actual number of items, not the estimate
 	b.num = uint64(len(b.values))
 	log.Debug().Msgf("Database will have %d items", b.num)
