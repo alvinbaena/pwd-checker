@@ -208,3 +208,13 @@ load  ✓ [======================================] 000/100 VUs  5m0s
      vus............................: 1       min=1      max=100
      vus_max........................: 100     min=100    max=100
 ```
+
+# Special thanks
+
+Special thanks to [Thomas Hurst](https://github.com/Freaky) for having an example of using the GCS
+algorithm in [this](https://github.com/Freaky/gcstool) repository, and
+to [Giovanni Bajo](https://github.com/rasky) for writing the original GCS blog that inspired all of
+this.
+
+Also thanks to [haveibeenpwned](https://haveibeenpwned.com) for providing the hashes of leaked
+passwords for free. Troy Hunt is the best.
