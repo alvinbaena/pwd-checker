@@ -29,7 +29,7 @@ func main() {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(logger.SetLogger(logger.WithLogger(func(c *gin.Context, z zerolog.Logger) zerolog.Logger {
-		return zerolog.New(gin.DefaultWriter)
+		return zerolog.New(gin.DefaultWriter).With().Timestamp().Logger()
 	})))
 
 	v1 := router.Group("/v1")

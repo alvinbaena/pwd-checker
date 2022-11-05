@@ -7,8 +7,8 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
-	"pwd-checker/internal/gcs"
 	"pwd-checker/internal/util"
+	"pwd-checker/pkg/gcs"
 )
 
 var (

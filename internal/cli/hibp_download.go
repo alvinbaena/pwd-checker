@@ -5,8 +5,8 @@ import (
 	"github.com/spf13/cobra"
 	"os"
 	"path/filepath"
-	"pwd-checker/internal/hibp"
 	"pwd-checker/internal/util"
+	"pwd-checker/pkg/hibp"
 )
 
 var (
@@ -23,7 +23,7 @@ var (
 func init() {
 	downloadCmd.Flags().StringVarP(&outFile, "out-file", "o", "./pwned-sha1.txt", "Output file path. Can be absolute or relative.")
 	downloadCmd.Flags().BoolVar(&overwrite, "overwrite", false, "Overwrite any existing files while writing the results.")
-	downloadCmd.Flags().IntVarP(&threads, "threads", "t", 0, "Number of threads to use for the download. If omitted or less than 2, defaults to eight times the number of processors on the machine.")
+	downloadCmd.Flags().IntVarP(&threads, "threads", "t", 0, "Number of threads to use for the download. If omitted or less than 2, defaults to eight times the number of logical processors of the machine.")
 
 	rootCmd.AddCommand(downloadCmd)
 }

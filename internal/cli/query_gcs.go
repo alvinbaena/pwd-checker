@@ -7,8 +7,8 @@ import (
 	"github.com/manifoldco/promptui"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"pwd-checker/internal/gcs"
 	"pwd-checker/internal/util"
+	"pwd-checker/pkg/gcs"
 	"regexp"
 	"strings"
 )

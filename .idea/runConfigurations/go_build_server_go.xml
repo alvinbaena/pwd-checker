@@ -3,7 +3,7 @@
     <module name="pwd-checker" />
     <working_directory value="$PROJECT_DIR$" />
     <envs>
-      <env name="GCS_FILE" value="D:\Code\pwned-p100m.gcs" />
+      <env name="GCS_FILE" value="D:\Work\pwned-p100m.gcs" />
       <env name="PORT" value="3100" />
     </envs>
     <EXTENSION ID="net.ashald.envfile">

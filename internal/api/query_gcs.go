@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/nbutton23/zxcvbn-go"
 	"net/http"
-	"pwd-checker/internal/gcs"
+	"pwd-checker/pkg/gcs"
 	"regexp"
 	"strings"
 )

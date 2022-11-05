@@ -139,7 +139,8 @@ func rangeHttpRequest(prefix string) (*retryablehttp.Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "hibp-downloader/1.0/go")
+	// This user agent string is identifying enough, I think...
+	req.Header.Set("User-Agent", "golang-hibp-downloader/1.0")
 	return req, nil
 }
 
