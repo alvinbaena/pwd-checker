@@ -49,7 +49,11 @@ go run cmd/pwd-checker/cmd.go query -n -i "D:\Work\pwned-go-p100m.gcs"
    makes this final step faster.
 3. The downloaded file requires at least 40GB of storage. If your output path does not have enough
    storage the command may error out before starting.
-4. The create command has a minimum RAM warning. The calculation is not that precise. It will eat
+4. Increasing the thread count when using the download command improves the download speed. 128
+   threads netted me a constant 150Mbps download speed. If the download feels to slow with the
+   default threads set you may increase it, but there are diminishing returns based on the amount of
+   logical CPU cores, internet speed, and storage speed.
+5. The create command has a minimum RAM warning. The calculation is not that precise. It will eat
    all your available RAM, but the minimum amount of memory **is** enforced. In my experience
    closing all other programs when running this command reduces the processing time by 2-3 minutes.
 
