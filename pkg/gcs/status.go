@@ -75,5 +75,5 @@ func (s *status) FinishStage() {
 func (s *status) Done() {
 	s.FinishStage()
 	elapsed := time.Since(s.start)
-	log.Info().Msgf("Complete in %v", elapsed)
+	log.Info().Msgf("complete in %v", elapsed)
 }

@@ -33,7 +33,7 @@ func downloadCommand() error {
 
 	abs, err := filepath.Abs(outFile)
 	if err != nil {
-		log.Fatal().Err(err).Msgf("Could not get absolute path of file")
+		log.Fatal().Err(err).Msgf("could not get absolute path of file")
 	}
 
 	if !overwrite {
@@ -50,7 +50,7 @@ func downloadCommand() error {
 
 	defer func(file *os.File) {
 		if err = file.Close(); err != nil {
-			log.Error().Err(err).Msg("Error closing Pwned Passwords file")
+			log.Error().Err(err).Msg("error closing Pwned Passwords file")
 		}
 	}(file)
 

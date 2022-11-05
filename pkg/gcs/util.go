@@ -17,7 +17,7 @@ func U64FromHex(src []byte) uint64 {
 		result = result * 16
 		v, err := strconv.ParseUint(string(c), 16, 64)
 		if err != nil {
-			log.Fatal().Err(err).Msg("Possible integer overflow?")
+			log.Fatal().Err(err).Msg("possible integer overflow?")
 		}
 		result += v
 	}
@@ -31,19 +31,19 @@ func estimateFileLines(f *os.File) uint64 {
 
 	info, err := f.Stat()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error estimating lines of file")
+		log.Fatal().Err(err).Msg("error estimating lines of file")
 	}
 
 	size := info.Size()
 	sampleSize := math.Min(float64(size), EstimateLimit)
 	buffer := make([]byte, int64(sampleSize))
 	if _, err = f.Read(buffer); err != nil {
-		log.Fatal().Err(err).Msg("Error estimating lines of file")
+		log.Fatal().Err(err).Msg("error estimating lines of file")
 	}
 	// Reset the file pointer to the start of the file so the actual read will not be missing a
 	// 16 MiB chunk
 	if _, err = f.Seek(0, io.SeekStart); err != nil {
-		log.Fatal().Err(err).Msg("Error estimating lines of file")
+		log.Fatal().Err(err).Msg("error estimating lines of file")
 	}
 
 	// Count the amount of \n present in buffer

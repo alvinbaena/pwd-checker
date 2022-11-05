@@ -60,12 +60,19 @@ go run cmd/pwd-checker/cmd.go query -n -i "D:\Work\pwned-go-p100m.gcs"
 ## Server
 
 The server exposes a simple unauthenticated REST API to query an already generated GCS database from
-the CLI tool of this project.
+the CLI tool of this project. The server uses and requires TLS to start.
 
-To start the server you need to set the following two environment variables:
+To start the server you need to set the following environment variables:
 
 - `PORT`: The port the server will listen on
 - `GCS_FILE`: Absolute path of the GCS file used to check for passwords.
+- `TLS_CERT`: Path to the PEM encoded certificate file used for TLS serve. Required if `SELF_TLS` is
+  not set or `false`.
+- `TLS_KEY`: Path to the PEM encoded private key file used for TLS serve. Required if `SELF_TLS` is
+  not set or `false`.
+- `SELF_TLS`: Generate a self-signed certificate on server start. It has a validity of 30 days, and
+  regenerates on each server restart. If `TLS_CERT` and `TLS_KEY` are set, those certificates take
+  precedence over this configuration.
 
 Then just run the server.
 

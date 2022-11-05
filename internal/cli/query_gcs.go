@@ -84,15 +84,15 @@ func queryCommand(password string) (err error) {
 		if !hashed {
 			prompt.Mask = '*'
 		} else {
-			log.Info().Msgf("Flag 'hashed' is set. Please use SHA1 Hashed passwords.")
+			log.Info().Msgf("flag 'hashed' is set. Please use SHA1 Hashed passwords.")
 		}
 
-		log.Info().Msgf("Running interactive session. ^C to exit")
+		log.Info().Msgf("running interactive session. ^C to exit")
 		if err = runInteractiveSession(prompt, searcher); err != nil {
 			if err.Error() == "^C" || err.Error() == "^D" {
 				log.Info().Msgf("Goodbye")
 			} else {
-				log.Error().Err(err).Msgf("Error during interactive session")
+				log.Error().Err(err).Msgf("error during interactive session")
 			}
 			// No return to avoid the default cobra error message
 			return nil
@@ -118,11 +118,11 @@ func runInteractiveSession(prompt promptui.Prompt, searcher *gcs.Reader) error {
 
 		hash, err := processPassword(result)
 		if err != nil {
-			log.Error().Err(err).Msg("Error processing input")
+			log.Error().Err(err).Msg("error processing input")
 		}
 
 		if err = queryDatabase(hash, searcher); err != nil {
-			log.Error().Err(err).Msg("Error during query")
+			log.Error().Err(err).Msg("error during query")
 		}
 	}
 }
@@ -134,9 +134,9 @@ func queryDatabase(hash uint64, searcher *gcs.Reader) error {
 	}
 
 	if exists {
-		log.Info().Msgf("Password is present")
+		log.Info().Msgf("password is present")
 	} else {
-		log.Info().Msgf("Password is not present")
+		log.Info().Msgf("password is not present")
 	}
 
 	return nil

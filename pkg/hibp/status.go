@@ -82,7 +82,7 @@ func (s *status) Done() {
 	requestAverage := float64(s.cloudflareRequestTimeTotal) / float64(s.cloudflareRequests)
 
 	p := message.NewPrinter(language.English)
-	log.Info().Msgf("Finished downloading all hash ranges in %v. %.0f hashes/s", time.Since(s.start), s.hashesPerSecond())
-	log.Debug().Msgf("Made %s Cloudflare requests. Average response time %.2f ms", p.Sprintf("%d", s.cloudflareRequests), requestAverage)
-	log.Debug().Msgf("Cloudflare cache hits: %s (%.2f%%), misses: %s (%.2f%%)", p.Sprintf("%d", s.cloudflareHits), cloudflareHitPercent, p.Sprintf("%d", s.cloudflareMisses), cloudflareMissPercent)
+	log.Info().Msgf("finished downloading all hash ranges in %v. %.0f hashes/s", time.Since(s.start), s.hashesPerSecond())
+	log.Debug().Msgf("made %s Cloudflare requests. Average response time %.2f ms", p.Sprintf("%d", s.cloudflareRequests), requestAverage)
+	log.Debug().Msgf("cloudflare cache hits: %s (%.2f%%), misses: %s (%.2f%%)", p.Sprintf("%d", s.cloudflareHits), cloudflareHitPercent, p.Sprintf("%d", s.cloudflareMisses), cloudflareMissPercent)
 }

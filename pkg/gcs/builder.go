@@ -57,7 +57,7 @@ func (b *Builder) Process() error {
 	defer s()
 
 	b.stat = newStatus()
-	log.Info().Msg("Starting process. This might take a while, be patient :)")
+	log.Info().Msg("starting process. This might take a while, be patient :)")
 
 	scanner := bufio.NewScanner(b.in)
 
@@ -95,7 +95,7 @@ func (b *Builder) Process() error {
 
 				for _, line := range linesToProcess {
 					if len(line) < 16 {
-						log.Trace().Msgf("Skipping line %s", line)
+						log.Trace().Msgf("skipping line %s", line)
 					} else {
 						hash := U64FromHex([]byte(line)[0:16])
 						records = append(records, hash)
@@ -146,7 +146,7 @@ func (b *Builder) add(entry uint64) {
 func (b *Builder) finalize() error {
 	// Adjust with the actual number of items, not the estimate
 	b.num = uint64(len(b.values))
-	log.Debug().Msgf("Database will have %d items", b.num)
+	log.Debug().Msgf("database will have %d items", b.num)
 
 	np := b.num * b.probability
 
@@ -198,9 +198,9 @@ func (b *Builder) finalize() error {
 	}
 
 	endOfData := (totalBits + wr) / 8
-	log.Debug().Msgf("End of data: %d", endOfData)
+	log.Debug().Msgf("end of data: %d", endOfData)
 	b.stat.Stage("Write Index")
-	log.Debug().Msgf("Index will have %d items", len(index))
+	log.Debug().Msgf("index will have %d items", len(index))
 
 	// Write the index: pairs of u64's (value, bit index)
 	for _, pair := range index {

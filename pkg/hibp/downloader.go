@@ -98,9 +98,9 @@ func (d *Downloader) ProcessRanges() error {
 	}
 	defer downloadTasks.Close()
 
-	log.Info().Msgf("Download Pwned Passwords SHA1 Hashes in file %s with %d threads, ^C to stop the process", d.fileName, threads)
+	log.Info().Msgf("download Pwned Passwords SHA1 Hashes in file %s with %d threads, ^C to stop the process", d.fileName, threads)
 	time.Sleep(10 * time.Second)
-	log.Info().Msg("Starting process. This might take a while, be patient :)")
+	log.Info().Msg("starting process. This might take a while, be patient :)")
 	d.stat = newStatus()
 	d.stat.BeginProgress()
 
@@ -108,7 +108,7 @@ func (d *Downloader) ProcessRanges() error {
 	for i := 0; i < 1024*1024; i++ {
 		prefix := getHashRange(i)
 		if err = downloadTasks.Publish(d.ProcessRange, prefix); err != nil {
-			log.Panic().Err(err).Msgf("There is a programming error here.")
+			log.Panic().Err(err).Msgf("there is a programming error here.")
 		}
 	}
 
@@ -116,7 +116,7 @@ func (d *Downloader) ProcessRanges() error {
 	d.stat.Done()
 
 	if f, err := os.Stat(d.fileName); err == nil {
-		log.Debug().Msgf("File %d is %.2fGiB", d.fileName, f.Size()/(1024*1024*1024))
+		log.Debug().Msgf("file %d is %.2fGiB", d.fileName, f.Size()/(1024*1024*1024))
 	}
 	return nil
 }
@@ -151,11 +151,11 @@ func (d *Downloader) ProcessRange(prefix string) {
 			if err = d.writeRangeToFile(prefix, data); err == nil {
 				d.stat.RangeDownloaded()
 			} else {
-				log.Fatal().Err(err).Msgf("Error during file write for range %s. Stopping process", prefix)
+				log.Fatal().Err(err).Msgf("error during file write for range %s. Stopping process", prefix)
 			}
 		}(prefix, data)
 	} else {
-		log.Error().Err(err).Msgf("Error downloading range %s", prefix)
+		log.Error().Err(err).Msgf("error downloading range %s", prefix)
 	}
 }
 
@@ -180,7 +180,7 @@ func (d *Downloader) downloadRange(prefix string) ([]byte, error) {
 		defer func(Body io.ReadCloser) {
 			err = Body.Close()
 			if err != nil {
-				log.Warn().Err(err).Msgf("Error closing body for range %s", prefix)
+				log.Warn().Err(err).Msgf("error closing body for range %s", prefix)
 			}
 		}(res.Body)
 

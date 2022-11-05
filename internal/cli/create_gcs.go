@@ -43,13 +43,13 @@ func createCommand() error {
 
 	defer func(file *os.File) {
 		if err = file.Close(); err != nil {
-			log.Error().Err(err).Msg("Error closing Pwned Passwords file")
+			log.Error().Err(err).Msg("error closing Pwned Passwords file")
 		}
 	}(file)
 
 	abs, err := filepath.Abs(outFile)
 	if err != nil {
-		log.Fatal().Err(err).Msgf("Could not get absolute path of file")
+		log.Fatal().Err(err).Msgf("could not get absolute path of file")
 	}
 
 	if !overwrite {
@@ -66,7 +66,7 @@ func createCommand() error {
 
 	defer func(out *os.File) {
 		if err = out.Close(); err != nil {
-			log.Error().Err(err).Msg("Error closing GCS file")
+			log.Error().Err(err).Msg("error closing GCS file")
 		}
 	}(out)
 

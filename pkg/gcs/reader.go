@@ -47,7 +47,7 @@ func (r *Reader) Initialize() error {
 	defer func(file *os.File) {
 		err := file.Close()
 		if err != nil {
-			log.Fatal().Err(err).Msg("Error closing GCS file file")
+			log.Fatal().Err(err).Msg("error closing GCS file file")
 		}
 	}(file)
 
@@ -61,7 +61,7 @@ func (r *Reader) Initialize() error {
 		return err
 	}
 	r.num = binary.BigEndian.Uint64(buf)
-	log.Debug().Msgf("Number of items: %d", r.num)
+	log.Debug().Msgf("number of items: %d", r.num)
 
 	buf = make([]byte, 8)
 	if _, err = file.Read(buf); err != nil {
@@ -105,7 +105,7 @@ func (r *Reader) Initialize() error {
 	r.index = make([]indexPair, 0, 1+r.indexLen)
 	r.index = append(r.index, indexPair{0, 0})
 
-	log.Info().Msg("Initializing database")
+	log.Info().Msg("initializing database")
 	for i := uint64(0); i < r.indexLen; i++ {
 		buf = make([]byte, 8)
 		if _, err = file.Read(buf); err != nil {
@@ -123,7 +123,7 @@ func (r *Reader) Initialize() error {
 	}
 
 	p := message.NewPrinter(language.English)
-	log.Info().Msgf("Ready for queries on %s items with a 1 in %s false-positive rate.", p.Sprintf("%d", r.num), p.Sprintf("%d", r.probability))
+	log.Info().Msgf("ready for queries on %s items with a 1 in %s false-positive rate.", p.Sprintf("%d", r.num), p.Sprintf("%d", r.probability))
 	return nil
 }
 
@@ -151,7 +151,7 @@ func (r *Reader) Exists(target uint64) (bool, error) {
 	defer func(file *os.File) {
 		err = file.Close()
 		if err != nil {
-			log.Fatal().Err(err).Msg("Error closing GCS file file")
+			log.Fatal().Err(err).Msg("error closing GCS file file")
 		}
 	}(file)
 
