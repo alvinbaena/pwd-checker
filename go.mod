@@ -8,9 +8,9 @@ require (
 	github.com/go-playground/validator/v10 v10.11.1
 	github.com/hashicorp/go-retryablehttp v0.7.1
 	github.com/jfcg/sorty/v2 v2.0.8
+	github.com/likexian/selfca v0.14.5
 	github.com/manifoldco/promptui v0.9.0
 	github.com/nbutton23/zxcvbn-go v0.0.0-20210217022336-fa2cb2858354
-	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.28.0
 	github.com/shirou/gopsutil/v3 v3.22.9
 	github.com/spf13/cobra v1.5.0
@@ -34,7 +34,6 @@ require (
 	github.com/jfcg/sixb v1.3.5 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
-	github.com/likexian/selfca v0.14.5 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
