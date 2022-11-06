@@ -29,14 +29,14 @@ and running quickly are presented here:
 ```shell
 # Download the pwned passwords SHA1 file
 # this takes a while, more threads may make this go faster
-go run cmd/pwd-chechker/cmd.go download -o "/home/user/pwned-pwds.txt"
+go run cmd/cli/cmd.go download -o "/home/user/pwned-pwds.txt"
 # Create a GCS file with a 1-in-100m false positive rate
 # this also may take a while, SSD storage makes this go much faster, also RAM is important
-go run cmd/pwd-checker/cmd.go create -i "/home/user/pwned-pwds.txt" -o "/home/user/pwned-pwds-p100m.gcs" -g 1024 -p 100000000
+go run cmd/cli/cmd.go create -i "/home/user/pwned-pwds.txt" -o "/home/user/pwned-pwds-p100m.gcs" -g 1024 -p 100000000
 # Run an interactive shell session to query the database.
 # May also be run non interactively if omitting the -n flag
 # CTRL+C to interrupt
-go run cmd/pwd-checker/cmd.go query -n -i "D:\Work\pwned-go-p100m.gcs"
+go run cmd/cli/cmd.go query -n -i "/home/user/pwned-pwds-p100m.gcs"
 ```
 
 ### Things to know about the CLI

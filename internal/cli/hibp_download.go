@@ -49,13 +49,13 @@ func downloadCommand() error {
 	}
 
 	defer func(file *os.File) {
-		if err = file.Close(); err != nil {
+		if err := file.Close(); err != nil {
 			log.Error().Err(err).Msg("error closing Pwned Passwords file")
 		}
 	}(file)
 
 	d := hibp.NewDownloader(file, threads)
-	if err = d.ProcessRanges(); err != nil {
+	if err = d.ProcessRanges(1024*1024, false); err != nil {
 		return err
 	}
 

@@ -72,7 +72,7 @@ func initHttpClient() *retryablehttp.Client {
 	return client
 }
 
-func (d *Downloader) ProcessRanges() error {
+func (d *Downloader) ProcessRanges(ranges int, skipWait bool) error {
 	util.CheckDiskSpace(d.fileName, 40)
 
 	s := util.Stats()
@@ -99,13 +99,15 @@ func (d *Downloader) ProcessRanges() error {
 	defer downloadTasks.Close()
 
 	log.Info().Msgf("download Pwned Passwords SHA1 Hashes in file %s with %d threads, ^C to stop the process", d.fileName, threads)
-	time.Sleep(10 * time.Second)
+	if !skipWait {
+		time.Sleep(10 * time.Second)
+	}
 	log.Info().Msg("starting process. This might take a while, be patient :)")
-	d.stat = newStatus()
+	d.stat = newStatus(ranges)
 	d.stat.BeginProgress()
 
 	// Start downloading ranges concurrently from 00000 to FFFFF
-	for i := 0; i < 1024*1024; i++ {
+	for i := 0; i < ranges; i++ {
 		prefix := getHashRange(i)
 		if err = downloadTasks.Publish(d.ProcessRange, prefix); err != nil {
 			log.Panic().Err(err).Msgf("there is a programming error here.")
@@ -116,7 +118,7 @@ func (d *Downloader) ProcessRanges() error {
 	d.stat.Done()
 
 	if f, err := os.Stat(d.fileName); err == nil {
-		log.Debug().Msgf("file %d is %.2fGiB", d.fileName, f.Size()/(1024*1024*1024))
+		log.Debug().Msgf("file %s is %.2fGiB", d.fileName, float64(f.Size())/(1024*1024*1024))
 	}
 	return nil
 }
@@ -146,14 +148,11 @@ func rangeHttpRequest(prefix string) (*retryablehttp.Request, error) {
 
 func (d *Downloader) ProcessRange(prefix string) {
 	if data, err := d.downloadRange(prefix); err == nil {
-		// Run file writing in another goroutine for more SPEED!
-		go func(prefix string, data []byte) {
-			if err = d.writeRangeToFile(prefix, data); err == nil {
-				d.stat.RangeDownloaded()
-			} else {
-				log.Fatal().Err(err).Msgf("error during file write for range %s. Stopping process", prefix)
-			}
-		}(prefix, data)
+		if err = d.writeRangeToFile(prefix, data); err == nil {
+			d.stat.RangeDownloaded()
+		} else {
+			log.Fatal().Err(err).Msgf("error during file write for range %s. Stopping process", prefix)
+		}
 	} else {
 		log.Error().Err(err).Msgf("error downloading range %s", prefix)
 	}
@@ -192,7 +191,7 @@ func (d *Downloader) downloadRange(prefix string) ([]byte, error) {
 }
 
 func (d *Downloader) writeRangeToFile(prefix string, r []byte) error {
-	// Synchronize file writes, we don't want intersected lines in the file.
+	// Synchronize file writes, we don't want intersected or incomplete lines written to the file.
 	d.wm.Lock()
 	defer d.wm.Unlock()
 

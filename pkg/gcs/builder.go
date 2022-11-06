@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"github.com/jfcg/sorty/v2"
 	"github.com/rs/zerolog/log"
+	"io"
 	"os"
 	"pwd-checker/internal/util"
 	"sync"
@@ -20,7 +21,7 @@ type indexPair struct {
 
 type Builder struct {
 	in               *os.File
-	out              *os.File
+	out              io.Writer
 	num              uint64
 	probability      uint64
 	indexGranularity uint64
@@ -32,7 +33,7 @@ type Builder struct {
 //
 // probability is the False positive rate for queries, 1-in-p.
 // indexGranularity is the entries per index point (16 bytes each).
-func NewBuilder(in *os.File, out *os.File, probability uint64, indexGranularity uint64) *Builder {
+func NewBuilder(in *os.File, out io.Writer, probability uint64, indexGranularity uint64) *Builder {
 	// Estimate the amount of lines in the passwords file. It's pretty accurate, <= 1% error rate.
 	// 847223402 is the exact number of lines for v8 file
 	estimatedLines := estimateFileLines(in)
@@ -49,9 +50,9 @@ func NewBuilder(in *os.File, out *os.File, probability uint64, indexGranularity 
 
 // Process creates the gcs file using the inputs in the builder
 // Concurrent file read inspired by https://marcellanz.com/post/file-read-challenge/
-func (b *Builder) Process() error {
+func (b *Builder) Process(skipWait bool) error {
 	// Stop the process if not enough ram to actually hold all the entries read.
-	util.CheckRam(b.num)
+	util.CheckRam(b.num, skipWait)
 
 	s := util.Stats()
 	defer s()
@@ -78,12 +79,12 @@ func (b *Builder) Process() error {
 	mutex := &sync.Mutex{}
 	wg := sync.WaitGroup{}
 
-	b.stat.StageWork("Hashing", b.num)
+	b.stat.StageWork("Read", b.num)
 	// Read first line
-	scanner.Scan()
-	for {
+	willScan := scanner.Scan()
+	for willScan {
 		lines = append(lines, scanner.Text())
-		willScan := scanner.Scan()
+		willScan = scanner.Scan()
 
 		if len(lines) == linesChunkLen || !willScan {
 			linesToProcess := lines
@@ -94,12 +95,8 @@ func (b *Builder) Process() error {
 				records := recordsPool.Get().([]uint64)[:0]
 
 				for _, line := range linesToProcess {
-					if len(line) < 16 {
-						log.Trace().Msgf("skipping line %s", line)
-					} else {
-						hash := U64FromHex([]byte(line)[0:16])
-						records = append(records, hash)
-					}
+					hash := U64FromHex([]byte(line)[0:16])
+					records = append(records, hash)
 				}
 
 				linesPool.Put(linesToProcess)
@@ -119,10 +116,6 @@ func (b *Builder) Process() error {
 
 			// Clear slice
 			lines = linesPool.Get().([]string)[:0]
-		}
-
-		if !willScan {
-			break
 		}
 	}
 	// Wait for all coroutines to finish

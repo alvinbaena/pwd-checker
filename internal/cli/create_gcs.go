@@ -71,7 +71,7 @@ func createCommand() error {
 	}(out)
 
 	builder := gcs.NewBuilder(file, out, probability, indexGranularity)
-	if err = builder.Process(); err != nil {
+	if err = builder.Process(false); err != nil {
 		return err
 	}
 

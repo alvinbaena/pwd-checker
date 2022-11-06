@@ -21,7 +21,7 @@
     <kind value="FILE" />
     <package value="pwned-pwd-checker" />
     <directory value="$PROJECT_DIR$/cmd/pwd-checker" />
-    <filePath value="$PROJECT_DIR$/cmd/pwd-checker/cmd.go" />
+    <filePath value="$PROJECT_DIR$/cmd/cli/cmd.go" />
     <option name="run" value="false" />
     <method v="2" />
   </configuration>

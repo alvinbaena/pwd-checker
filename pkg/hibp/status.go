@@ -19,13 +19,15 @@ type status struct {
 	start                      time.Time
 	ticker                     *time.Ticker
 	progress                   chan bool
+	totalRanges                int
 }
 
-func newStatus() *status {
+func newStatus(totalRanges int) *status {
 	return &status{
-		start:    time.Now(),
-		ticker:   time.NewTicker(10 * time.Second),
-		progress: make(chan bool),
+		start:       time.Now(),
+		ticker:      time.NewTicker(10 * time.Second),
+		progress:    make(chan bool),
+		totalRanges: totalRanges,
 	}
 }
 
@@ -37,7 +39,7 @@ func (s *status) BeginProgress() {
 			case <-s.progress:
 				return
 			case <-s.ticker.C:
-				total := float64(1024 * 1024)
+				total := float64(s.totalRanges)
 				log.Info().Msgf("%.2f%% Hash ranges downloaded. %.0f hashes/s", (float64(s.rangesDownloaded)*100)/total, s.hashesPerSecond())
 			}
 		}

@@ -2,23 +2,19 @@ package gcs
 
 import (
 	"bufio"
-	"errors"
+	"fmt"
 	"io"
-	"os"
 )
 
-// https://github.com/Freaky/rust-bitrw
-
 // bitReader adds bit-level reading to os.File specifically.
-// TODO Maybe implement using io.Reader?
 type bitReader struct {
-	inner  *os.File
+	inner  io.ReadSeeker
 	buffer []byte
 	unused uint8
 }
 
-func newBitReader(w *os.File) *bitReader {
-	return &bitReader{inner: w, buffer: make([]byte, 1), unused: 0}
+func newBitReader(r io.ReadSeeker) *bitReader {
+	return &bitReader{inner: r, buffer: make([]byte, 1), unused: 0}
 }
 
 // Reset the internal state of the bitReader. The next read will load fresh
@@ -29,17 +25,11 @@ func (r *bitReader) Reset() {
 	r.unused = 0
 }
 
-// ReadBit reads a single bit from the reader.
-func (r *bitReader) ReadBit() (uint8, error) {
-	bit, err := r.ReadBits(1)
-	return uint8(bit), err
-}
-
 // ReadBits reads up to 64 bits from the reader.
 func (r *bitReader) ReadBits(n uint8) (uint64, error) {
 	// Read up to 64 bits to the buffer
 	if n > 64 {
-		return 0, errors.New("cannot read more than 64 bits at a time")
+		return 0, fmt.Errorf("cannot read more than 64 bits at a time")
 	}
 
 	ret := uint64(0)
@@ -76,11 +66,9 @@ func (r *bitReader) Seek(offset int64, whence int) (ret int64, err error) {
 		if err != nil {
 			return ret, err
 		}
-
 		if _, err = r.ReadBits(uint8(offset % 8)); err != nil {
 			return 0, err
 		}
-
 		return offset, nil
 	case io.SeekEnd:
 		r.Reset()
@@ -90,7 +78,7 @@ func (r *bitReader) Seek(offset int64, whence int) (ret int64, err error) {
 			if bipos > 0 {
 				bypos -= 1
 			}
-			ipos, err := r.inner.Seek(bypos, io.SeekEnd)
+			ipos, err := r.inner.Seek(bypos, whence)
 			if err != nil {
 				return 0, err
 			}
@@ -101,17 +89,11 @@ func (r *bitReader) Seek(offset int64, whence int) (ret int64, err error) {
 
 			return ipos + (offset % 8), nil
 		} else {
-			return 0, errors.New("seeking past end of file not yet supported")
+			return 0, fmt.Errorf("seeking past end of file not yet supported")
 		}
 	default:
-		return 0, errors.New("current not yet supported")
+		return 0, fmt.Errorf("current not yet supported")
 	}
-}
-
-// Inner unwraps this bitReader, returning the underlying io.File and discarding any
-// unread buffered bits.
-func (r *bitReader) Inner() *os.File {
-	return r.inner
 }
 
 // An io.Writer and io.ByteWriter at the same time.
@@ -139,20 +121,11 @@ func newBitWriter(out io.Writer) *bitWriter {
 	return w
 }
 
-// WriteBit writes a single bit to the inner.
-func (w *bitWriter) WriteBit(bit uint8) (uint64, error) {
-	if bit > 0 {
-		return 0, errors.New("bit has no content")
-	}
-
-	return w.WriteBits(1, uint64(bit))
-}
-
 // WriteBits Writes up to 64 bits to the inner.
-func (w *bitWriter) WriteBits(n uint8, r uint64) (uint64, error) {
+func (w *bitWriter) WriteBits(n uint8, r uint64) error {
 	// Write up to 64 bits to the buffer
 	if n > 64 {
-		return 0, errors.New("cannot write more than 64 bits at a time")
+		return fmt.Errorf("cannot write more than 64 bits at a time")
 	}
 
 	return w.writeBitsInternal(n, r&(1<<n-1))
@@ -177,20 +150,20 @@ func (w *bitWriter) WriteBits(n uint8, r uint64) (uint64, error) {
 // Or:
 //
 //	err := w.WriteBits(0x1234, 8)            // bits higher than the 8th are ignored here
-func (w *bitWriter) writeBitsInternal(n uint8, r uint64) (uint64, error) {
+func (w *bitWriter) writeBitsInternal(n uint8, r uint64) error {
 	newBits := w.unused + n
 	if newBits < 8 {
 		// r fits into buffer, no write will occur to file
 		w.buffer |= byte(r) << (8 - newBits)
 		w.unused = newBits
-		return uint64(n), nil
+		return nil
 	}
 	if newBits > 8 {
 		// buffer will be filled, and there will be more bits to write
-		// "Fill buffer" and write it inner
+		// "Fill buffer" and write it into inner
 		free := 8 - w.unused
 		if err := w.inner.WriteByte(w.buffer | uint8(r>>(n-free))); err != nil {
-			return 0, err
+			return err
 		}
 		n -= free
 
@@ -199,24 +172,24 @@ func (w *bitWriter) writeBitsInternal(n uint8, r uint64) (uint64, error) {
 			n -= 8
 			// No need to mask r, converting to byte will mask inner higher bits
 			if err := w.inner.WriteByte(uint8(r >> n)); err != nil {
-				return 0, err
+				return err
 			}
 		}
-		// Put remaining into cache
+		// Put remaining into buffer
 		if n > 0 {
 			// Note: n < 8 (in case of n=8, 1<<n would overflow byte)
 			w.buffer, w.unused = (uint8(r)&((1<<n)-1))<<(8-n), n
 		} else {
 			w.buffer, w.unused = 0, 0
 		}
-		return uint64(n), nil
+		return nil
 	}
 
 	// buffer will be filled exactly with the bits to be written
 	bb := w.buffer | uint8(r)
 	w.buffer, w.unused = 0, 0
 	err := w.inner.WriteByte(bb)
-	return uint64(n), err
+	return err
 }
 
 // FlushBits aligns the bit stream to a byte boundary,

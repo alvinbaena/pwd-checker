@@ -2,7 +2,7 @@ package gcs
 
 import (
 	"encoding/binary"
-	"errors"
+	"fmt"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -45,8 +45,7 @@ func (r *Reader) Initialize() error {
 	}
 
 	defer func(file *os.File) {
-		err := file.Close()
-		if err != nil {
+		if err := file.Close(); err != nil {
 			log.Fatal().Err(err).Msg("error closing GCS file file")
 		}
 	}(file)
@@ -93,7 +92,7 @@ func (r *Reader) Initialize() error {
 	}
 
 	if string(buf) != gcsMagic {
-		return errors.New("not a GCS File")
+		return fmt.Errorf("not a GCS File")
 	}
 
 	// Move the file pointer where the index starts
@@ -149,8 +148,7 @@ func (r *Reader) Exists(target uint64) (bool, error) {
 	}
 
 	defer func(file *os.File) {
-		err = file.Close()
-		if err != nil {
+		if err := file.Close(); err != nil {
 			log.Fatal().Err(err).Msg("error closing GCS file file")
 		}
 	}(file)
@@ -177,7 +175,7 @@ func (r *Reader) Exists(target uint64) (bool, error) {
 		diff := uint64(0)
 
 		for {
-			re, err := reader.ReadBit()
+			re, err := reader.ReadBits(1)
 			if err != nil {
 				return false, err
 			}

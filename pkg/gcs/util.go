@@ -17,7 +17,7 @@ func U64FromHex(src []byte) uint64 {
 		result = result * 16
 		v, err := strconv.ParseUint(string(c), 16, 64)
 		if err != nil {
-			log.Fatal().Err(err).Msg("possible integer overflow?")
+			log.Fatal().Err(err).Msg("source not hex")
 		}
 		result += v
 	}

@@ -43,7 +43,7 @@ func ApplyCliSettings(verbose bool, profile bool, pprofPort uint16) {
 	}
 }
 
-func CheckRam(items uint64) {
+func CheckRam(items uint64, skipWait bool) {
 	required := (items * 8) / (1024 * 1024)
 	if memStat, err := mem.VirtualMemory(); err == nil {
 		log.Debug().Msgf("system has %.2f MiB of RAM available", float64(memStat.Available)/(1024*1024))
@@ -52,12 +52,16 @@ func CheckRam(items uint64) {
 		}
 
 		log.Info().Msgf("^C now to stop the process.")
-		time.Sleep(10 * time.Second)
+		if !skipWait {
+			time.Sleep(10 * time.Second)
+		}
 	} else {
 		log.Warn().Msgf("estimated memory use for %d items %d MiB", items, required)
 		log.Warn().Msgf("this process will cause disk swapping and general slowness if your "+
 			"current system memory is not at least %d MiB. ^C now to stop the process.", required)
-		time.Sleep(10 * time.Second)
+		if !skipWait {
+			time.Sleep(10 * time.Second)
+		}
 	}
 }
 

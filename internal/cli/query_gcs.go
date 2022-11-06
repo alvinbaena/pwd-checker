@@ -3,7 +3,7 @@ package cli
 import (
 	"crypto/sha1"
 	"encoding/binary"
-	"errors"
+	"fmt"
 	"github.com/manifoldco/promptui"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -68,13 +68,13 @@ func queryCommand(password string) (err error) {
 			Label: label,
 			Validate: func(input string) error {
 				if len(input) == 0 {
-					return errors.New("please enter a valid password")
+					return fmt.Errorf("please enter a valid password")
 				}
 
 				if hashed {
 					match, _ := regexp.MatchString("^[a-fA-F\\d]{40}$", password)
 					if !match {
-						return errors.New("input is not a valid SHA1 Hexadecimal hash")
+						return fmt.Errorf("input is not a valid SHA1 Hexadecimal hash")
 					}
 				}
 				return nil
@@ -145,7 +145,7 @@ func queryDatabase(hash uint64, searcher *gcs.Reader) error {
 func processPassword(password string) (uint64, error) {
 	if hashed {
 		if match, _ := regexp.MatchString("^[a-fA-F\\d]{40}$", password); !match {
-			return 0, errors.New("input is not a valid SHA1 Hexadecimal hash")
+			return 0, fmt.Errorf("input is not a valid SHA1 Hexadecimal hash")
 		}
 
 		// The hash must be uppercase

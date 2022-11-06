@@ -1,8 +1,8 @@
 package gcs
 
 import (
+	"io"
 	"math"
-	"os"
 )
 
 type golombEncoder struct {
@@ -11,7 +11,7 @@ type golombEncoder struct {
 	log2p       uint8
 }
 
-func newEncoder(w *os.File, probability uint64) *golombEncoder {
+func newEncoder(w io.Writer, probability uint64) *golombEncoder {
 	return &golombEncoder{
 		inner:       newBitWriter(w),
 		probability: probability,
@@ -25,14 +25,12 @@ func (e *golombEncoder) Encode(value uint64) (uint64, error) {
 	r := value % e.probability
 	written := uint64(0)
 
-	_, err := e.inner.WriteBits(uint8(q+1), (1<<(q+1))-2)
-	if err != nil {
+	if err := e.inner.WriteBits(uint8(q+1), (1<<(q+1))-2); err != nil {
 		return written, err
 	}
 	written += q + 1
 
-	_, err = e.inner.WriteBits(e.log2p, r)
-	if err != nil {
+	if err := e.inner.WriteBits(e.log2p, r); err != nil {
 		return written, err
 	}
 	written += uint64(e.log2p)
