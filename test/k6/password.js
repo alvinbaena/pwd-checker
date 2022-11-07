@@ -55,7 +55,10 @@ export default function () {
       JSON.stringify({'password': 'password'}),
       params],
     ['POST', url,
-      JSON.stringify({'password': '9Uy34f#qM2zr'}),
+      JSON.stringify({'password': Math.random().toString(36).slice(2)}),
+      params],
+    ['POST', url,
+      JSON.stringify({'password': Math.random().toString(36).slice(2)}),
       params],
     ['POST', url,
       JSON.stringify({'password': 'i love dogs'}),
@@ -89,6 +92,19 @@ export default function () {
   });
 
   check(responses[2], {
+    'is ok': (r) => r.status === 200,
+    'is pwned': (r) => {
+      if (r !== undefined) {
+        let body = JSON.parse(r.body)
+        return body['pwned'] === false && body['strength'];
+      }
+
+      // This means the request timed out or failed.
+      return false;
+    }
+  });
+
+  check(responses[3], {
     'is ok': (r) => r.status === 200,
     'is pwned': (r) => {
       if (r !== undefined) {

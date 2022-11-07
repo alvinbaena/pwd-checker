@@ -147,31 +147,32 @@ folder. Some manual configuration is needed before the test results can be seen 
 
 1. After running `docker compose up`, open [grafana](http://locahlhost:4020). User: `admin`,
    Pass: `admin`
-2. Import the dashboard with id `13861`
-3. Turn the API server on
-4. Run the tests
+2. Create the prometheus datasource pointing to `http://prometheus:9090`
+3. Import the dashboard with id `13861`
+4. Turn the API server on
+5. Run the tests
 
 ### Using statsd
 
 ``` shell
 # Test the hash check API
-k6 run -o statsd -e API_BASE_URL="http://localhost:3100" hash.js
+k6 run -o statsd -e API_BASE_URL="https://localhost:3100" hash.js
 # Test the password check API
-k6 run -o statsd -e API_BASE_URL="http://localhost:3100" password.js
+k6 run -o statsd -e API_BASE_URL="https://localhost:3100" password.js
 ```
 
 ### Not using statsd
 
 ``` shell
 # Test the hash check API
-k6 run -e API_BASE_URL="http://localhost:3100" hash.js
+k6 run -e API_BASE_URL="https://localhost:3100" hash.js
 # Test the password check API
-k6 run -e API_BASE_URL="http://localhost:3100" password.js
+k6 run -e API_BASE_URL="https://localhost:3100" password.js
 ```
 
 ### Load passwords.js
 
-This test was done on an i7 7700HQ (4c/8t) laptop with 32GB of RAM.
+This test was done on an i7 7700HQ (4c/8t) laptop with 32GB of RAM with no request caching done.
 
 ```
           /\      |‾‾| /‾‾/   /‾‾/

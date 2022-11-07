@@ -3,6 +3,7 @@ package gcs
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/dgraph-io/ristretto"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -10,7 +11,10 @@ import (
 	"math"
 	"os"
 	"pwd-checker/internal/util"
+	"time"
 )
+
+const hashCacheItemTTL = time.Hour
 
 type Reader struct {
 	fileName    string
@@ -20,9 +24,21 @@ type Reader struct {
 	indexLen    uint64
 	index       []indexPair
 	log2p       uint8
+	cache       *ristretto.Cache
 }
 
 func NewReader(fileName string) *Reader {
+	cache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: 10 * 10000,
+		MaxCost:     50 * 10000,
+		BufferItems: 64,
+	})
+
+	if err != nil {
+		log.Fatal().Err(err).Msg("error setting reader cache")
+		return nil
+	}
+
 	r := &Reader{
 		fileName:    fileName,
 		num:         0,
@@ -31,6 +47,7 @@ func NewReader(fileName string) *Reader {
 		indexLen:    0,
 		index:       make([]indexPair, 0, 0),
 		log2p:       0,
+		cache:       cache,
 	}
 
 	return r
@@ -130,6 +147,12 @@ func (r *Reader) Exists(target uint64) (bool, error) {
 	s := util.Stats()
 	defer s()
 
+	// Check if hash is in cache. Avoids opening the file if the hashed password is present
+	c, ok := r.cache.Get(target)
+	if ok {
+		return c.(bool), nil
+	}
+
 	// By opening a file pointer everytime we check if a password is pwned, we improve performance
 	// by *a lot*. The tradeoff is the cost in CPU cycles.
 	//
@@ -141,7 +164,7 @@ func (r *Reader) Exists(target uint64) (bool, error) {
 	// CPU usage in all cores.
 	//
 	// This is a solution that works "well enough". I probably should change it to something more CPU
-	// efficient. Less power used, less global warming I guess...
+	// efficient. Less power used == less global warming I guess...
 	file, err := os.OpenFile(r.fileName, os.O_RDONLY, 444)
 	if err != nil {
 		return false, err
@@ -157,6 +180,7 @@ func (r *Reader) Exists(target uint64) (bool, error) {
 	// Maybe the computed hash is present exactly as is on the index.
 	exact, closest := binarySearch(r.index, h)
 	if exact > 0 {
+		r.cache.SetWithTTL(target, true, 1, hashCacheItemTTL)
 		return true, nil
 	}
 
@@ -201,5 +225,7 @@ func (r *Reader) Exists(target uint64) (bool, error) {
 		}
 	}
 
-	return last == h, nil
+	found := last == h
+	r.cache.SetWithTTL(target, found, 1, hashCacheItemTTL)
+	return found, nil
 }

@@ -6,18 +6,18 @@ export const options = {
     smoke: {
       executor: 'constant-vus',
       vus: 1,
-      duration: '1m'
+      duration: '1m',
     },
-    load: {
-      startTime: '1m',
-      executor: 'ramping-vus',
-      startVUs: 0,
-      stages: [
-        {duration: '1m', target: 100}, // simulate ramp-up of traffic from 1 to 100 users over 2 minutes.
-        {duration: '3m', target: 100}, // stay at 100 users for 5 minutes
-        {duration: '1m', target: 0}, // ramp-down to 0 users
-      ],
-    },
+    // load: {
+    //   startTime: '1m',
+    //   executor: 'ramping-vus',
+    //   startVUs: 0,
+    //   stages: [
+    //     {duration: '1m', target: 100}, // simulate ramp-up of traffic from 1 to 100 users over 2 minutes.
+    //     {duration: '3m', target: 100}, // stay at 100 users for 5 minutes
+    //     {duration: '1m', target: 0}, // ramp-down to 0 users
+    //   ],
+    // },
     // stress: {
     //   startTime: '6m',
     //   executor: 'ramping-vus',
@@ -37,31 +37,42 @@ export const options = {
     http_req_failed: ['rate<0.01'], // http errors should be less than 1%
   },
 
-  insecureSkipTLSVerify: true
+  insecureSkipTLSVerify: true,
 };
 
-export default function () {
+async function sha1Password() {
+  let p = Math.random().toString(36).slice(2);
+  const buffer = new TextEncoder('utf-8').encode(p);
+  const digest = await crypto.subtle.digest('SHA-1', buffer);
+
+  return Array.from(new Uint8Array(digest))
+  .map( x => x.toString(16)
+  .padStart(2,'0') )
+  .join('');
+}
+
+export default function() {
   const url = `${__ENV.API_BASE_URL}/v1/check/hash`;
 
   const params = {
     headers: {
       'Content-Type': 'application/json',
     },
-    timeout: '300s'
+    timeout: '300s',
   };
 
   const responses = http.batch([
-    // password
     ['POST', url,
-      JSON.stringify({'hash': '5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8'}),
+      JSON.stringify({'hash': '5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8'}), // password
       params],
-    // 9Uy34f#qM2zr
     ['POST', url,
-      JSON.stringify({'hash': '022fa8ea463319b08304464dc7f7460acba58d34'}),
+      JSON.stringify({'hash': sha1Password()}),
       params],
-    // i love dogs
     ['POST', url,
-      JSON.stringify({'hash': 'c524a39c02f142ba0b81da289f2e11332d59b4dd'}),
+      JSON.stringify({'hash': 'c524a39c02f142ba0b81da289f2e11332d59b4dd'}), // i love dogs
+      params],
+    ['POST', url,
+      JSON.stringify({'hash': sha1Password()}),
       params],
   ]);
 
@@ -74,7 +85,7 @@ export default function () {
 
       // This means the request timed out or failed.
       return false;
-    }
+    },
   });
 
   check(responses[1], {
@@ -86,7 +97,7 @@ export default function () {
 
       // This means the request timed out or failed.
       return false;
-    }
+    },
   });
 
   check(responses[2], {
@@ -98,6 +109,18 @@ export default function () {
 
       // This means the request timed out or failed.
       return false;
-    }
+    },
+  });
+
+  check(responses[3], {
+    'is ok': (r) => r.status === 200,
+    'is not pwned': (r) => {
+      if (r !== undefined) {
+        return JSON.parse(r.body)['pwned'] === false;
+      }
+
+      // This means the request timed out or failed.
+      return false;
+    },
   });
 }
