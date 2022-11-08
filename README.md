@@ -29,14 +29,14 @@ and running quickly are presented here:
 ```shell
 # Download the pwned passwords SHA1 file
 # this takes a while, more threads may make this go faster
-go run cmd/cli/cmd.go download -o "/home/user/pwned-pwds.txt"
+go run cmd/pwd-checker/main.go download -o "/home/user/pwned-pwds.txt"
 # Create a GCS file with a 1-in-100m false positive rate
 # this also may take a while, SSD storage makes this go much faster, also RAM is important
-go run cmd/cli/cmd.go create -i "/home/user/pwned-pwds.txt" -o "/home/user/pwned-pwds-p100m.gcs" -g 1024 -p 100000000
+go run cmd/pwd-checker/main.go create -i "/home/user/pwned-pwds.txt" -o "/home/user/pwned-pwds-p100m.gcs" -g 1024 -p 100000000
 # Run an interactive shell session to query the database.
 # May also be run non interactively if omitting the -n flag
 # CTRL+C to interrupt
-go run cmd/cli/cmd.go query -n -i "/home/user/pwned-pwds-p100m.gcs"
+go run cmd/pwd-checker/main.go query -n -i "/home/user/pwned-pwds-p100m.gcs"
 ```
 
 ### Things to know about the CLI
@@ -59,22 +59,24 @@ go run cmd/cli/cmd.go query -n -i "/home/user/pwned-pwds-p100m.gcs"
 
 ## Server
 
-The server exposes a simple unauthenticated REST API to query an already generated GCS database from
-the CLI tool of this project. The server uses and requires TLS to start.
+The `serve` command exposes a simple unauthenticated REST API to query an already generated GCS
+database from the other commands of this project. The server uses and requires TLS to start.
 
-To start the server you need to set the following environment variables:
+the flags `--self-tls`, `--tls-key`, and `--tls-cert` configure the certificate to be used by the
+server. If `--tls-key` and `--tls-cert` are used the value of `--self-tls` is ignored. `--self-tls`
+generates a self-signed certificate on server start. It has a validity of 30 days, and regenerates
+on each server restart.
 
-- `PORT`: The port the server will listen on
-- `GCS_FILE`: Absolute path of the GCS file used to check for passwords.
-- `TLS_CERT`: Path to the PEM encoded certificate file used for TLS serve. Required if `SELF_TLS` is
-  not set or `false`.
-- `TLS_KEY`: Path to the PEM encoded private key file used for TLS serve. Required if `SELF_TLS` is
-  not set or `false`.
-- `SELF_TLS`: Generate a self-signed certificate on server start. It has a validity of 30 days, and
-  regenerates on each server restart. If `TLS_CERT` and `TLS_KEY` are set, those certificates take
-  precedence over this configuration.
+To change the port use the `--port` flag, by default it uses port `3100`.
 
-Then just run the server.
+To start the server use the `serve` command:
+
+```shell
+# Start the server with a self signed certificate on port 3100
+go run cmd/pwd-checker/main.go serve -i "/home/user/pwned-pwds-p100m.gcs" --self-tls
+# Start the server with your own certificates on port 3100
+go run cmd/pwd-checker/main.go serve -i "/home/user/pwned-pwds-p100m.gcs" --tls-key "/home/user/tls/pwned.key" --tls-cert "/home/user/tls/pwned.pem"
+```
 
 ### Endpoints
 
@@ -129,10 +131,26 @@ POST /v1/check/password
    is complete.
 2. The server logs to stdout in JSON format.
 3. The server logs the HTTP calls, also in JSON format.
+4. The server caches the password check requests for one hour, with a max of 50.000 requests cached.
 
-### Docker?
+### Docker
 
-There is a Dockerfile, but local volumes have not worked for me. So use at your own peril.
+There is a `docker-compose.yaml` and `Dockerfile` file that builds the server to be used. Be warned
+that the file reads are incredibly slow, so the start-up procedure takes some time, and requests
+tend to take 500-1500ms.
+
+Use the Docker container at your own peril...
+
+## Profiling
+
+Every command of this project has support for GO's pprof package. To enable profiling set
+the `--profile` and `--profile-port` flags to start an HTTP pprof server. By default, the profile
+port used is `6060`.
+
+## Unit Tests
+
+The project comes with unit tests for the `pkg` package only. All other packages are untested for
+now.
 
 ## Load Tests
 

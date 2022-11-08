@@ -1,6 +1,10 @@
+// Copyright (c) 2022. Alvin Baena.
+// SPDX-License-Identifier: MIT
+
 package cli
 
 import (
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"os"
@@ -29,6 +33,7 @@ func init() {
 }
 
 func downloadCommand() error {
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	util.ApplyCliSettings(verbose, profile, pprofPort)
 
 	abs, err := filepath.Abs(outFile)

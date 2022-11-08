@@ -1,7 +1,10 @@
+// Copyright (c) 2022. Alvin Baena.
+// SPDX-License-Identifier: MIT
+
 package cli
 
 var (
-	// root
+	// create, query, serve
 	inputFile string
 	// root
 	verbose bool
@@ -23,4 +26,12 @@ var (
 	threads int
 	// create, download
 	overwrite bool
+	// serve
+	selfTLS bool
+	// serve
+	tlsCert string
+	// serve
+	tlsKey string
+	// serve
+	port uint16
 )

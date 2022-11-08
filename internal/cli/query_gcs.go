@@ -1,3 +1,6 @@
+// Copyright (c) 2022. Alvin Baena.
+// SPDX-License-Identifier: MIT
+
 package cli
 
 import (
@@ -5,8 +8,10 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/manifoldco/promptui"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"os"
 	"pwd-checker/internal/util"
 	"pwd-checker/pkg/gcs"
 	"regexp"
@@ -48,6 +53,7 @@ func init() {
 }
 
 func queryCommand(password string) (err error) {
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	util.ApplyCliSettings(verbose, profile, pprofPort)
 
 	searcher := gcs.NewReader(inputFile)

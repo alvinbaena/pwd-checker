@@ -1,5 +1,5 @@
-ext/
 .idea/
 .git/
 *.iml
-*.gcs
+test/
+*.exe

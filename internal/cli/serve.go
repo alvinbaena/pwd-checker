@@ -1,6 +1,10 @@
-package main
+// Copyright (c) 2022. Alvin Baena.
+// SPDX-License-Identifier: MIT
+
+package cli
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -10,24 +14,43 @@ import (
 	"github.com/likexian/selfca"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/net/context"
+	"github.com/spf13/cobra"
 	"net/http"
 	"os"
 	"os/signal"
 	"pwd-checker/internal/api"
+	"pwd-checker/internal/util"
 	"syscall"
 	"time"
 )
 
-func main() {
-	cfg, err := api.LoadConfig()
-	if err != nil {
-		log.Fatal().Err(err).Msg("error loading configuration")
+var (
+	serveCmd = &cobra.Command{
+		Use:   "serve",
+		Short: "Serve the API for querying the Pwned Password GCS database",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return serveCommand()
+		},
 	}
+)
 
-	if !cfg.Debug {
+//goland:noinspection GoUnhandledErrorResult
+func init() {
+	serveCmd.Flags().StringVarP(&inputFile, "in-file", "i", "", "Pwned Passwords GCS input file (required)")
+	serveCmd.MarkFlagRequired("in-file")
+	serveCmd.Flags().BoolVar(&selfTLS, "self-tls", false,
+		"If the server should use a self-signed certificate when starting. The certificate is renewed on each server restart")
+	serveCmd.Flags().StringVar(&tlsCert, "tls-cert", "", "Path to the PEM encoded TLS certificate to be used by the server")
+	serveCmd.Flags().StringVar(&tlsCert, "tls-key", "", "Path to the PEM encoded TLS private key to be used by the server")
+	serveCmd.Flags().Uint16VarP(&port, "port", "p", 3100, "Port to be used by the server")
+
+	rootCmd.AddCommand(serveCmd)
+}
+
+func serveCommand() error {
+	util.ApplyCliSettings(verbose, profile, pprofPort)
+	if !verbose {
 		gin.SetMode(gin.ReleaseMode)
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
 
 	router := gin.New()
@@ -39,11 +62,11 @@ func main() {
 	v1 := router.Group("/v1")
 
 	pwned := v1.Group("/check")
-	if err = api.RegisterQueryApi(pwned, cfg.GcsFile); err != nil {
-		log.Fatal().Err(err).Msg("error initializing Query API")
+	if err := api.RegisterQueryApi(pwned, inputFile); err != nil {
+		return fmt.Errorf("error initializing API: %s", err)
 	}
 
-	srvAddr := fmt.Sprintf(":%s", cfg.Port)
+	srvAddr := fmt.Sprintf(":%d", port)
 	srv := &http.Server{
 		Addr:    srvAddr,
 		Handler: router,
@@ -51,12 +74,12 @@ func main() {
 
 	go func() {
 		log.Info().Msgf("starting TLS Server on address: %s", srvAddr)
-		if cfg.TLSCert != "" && cfg.TLSKey != "" {
+		if tlsCert != "" && tlsKey != "" {
 			// service connections with tls certs
-			if err = srv.ListenAndServeTLS(cfg.TLSCert, cfg.TLSKey); err != nil && err != http.ErrServerClosed {
+			if err := srv.ListenAndServeTLS(tlsCert, tlsKey); err != nil && err != http.ErrServerClosed {
 				log.Fatal().Err(err).Msg("error starting server")
 			}
-		} else if cfg.SelfTLS {
+		} else if selfTLS {
 			log.Warn().Msgf("using auto self-signed certificate for TLS. This is not recommended for production. Please consider using your own certificates.")
 			caConfig := selfca.Certificate{
 				IsCA:      true,
@@ -89,11 +112,13 @@ func main() {
 				log.Fatal().Err(err).Msg("error starting server")
 			}
 		} else {
-			log.Fatal().Msg("server requires TLS configuration to start.")
+			log.Fatal().Msg("server requires TLS configuration to start. " +
+				"Please use either the --self-tls flag or set a certificate with the --tls-cert and --tls-key flags")
 		}
 	}()
 
 	gracefulShutdown(srv)
+	return nil
 }
 
 func gracefulShutdown(srv *http.Server) {

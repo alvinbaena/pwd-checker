@@ -1,0 +1,18 @@
+version: "3.7"
+
+services:
+  checker:
+    build:
+      context: .
+    volumes:
+      - type: bind
+        source: "/mnt/d/Work/pwned-p100m.gcs"
+        target: /etc/pwned/pwned.gcs
+        read_only: true
+    ports:
+      - "3100:3100"
+    command:
+      - serve
+      - -i=/etc/pwned/pwned.gcs
+      - --port=3100
+      - --self-tls
