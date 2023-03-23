@@ -6,7 +6,7 @@ services:
       context: .
     volumes:
       - type: bind
-        source: "/mnt/d/Work/pwned-p100m.gcs"
+        source: "./pwned-p100m.gcs"
         target: /etc/pwned/pwned.gcs
         read_only: true
     ports:

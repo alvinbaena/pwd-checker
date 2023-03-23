@@ -5,11 +5,11 @@ package gcs
 
 import (
 	"bufio"
+	"github.com/alvinbaena/pwd-checker/internal/util"
 	"github.com/jfcg/sorty/v2"
 	"github.com/rs/zerolog/log"
 	"io"
 	"os"
-	"pwd-checker/internal/util"
 	"sync"
 )
 

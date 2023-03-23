@@ -1,18 +1,17 @@
 // Copyright (c) 2022. Alvin Baena.
 // SPDX-License-Identifier: MIT
 
-package cli
+package cmd
 
 import (
 	"fmt"
+	"github.com/alvinbaena/pwd-checker/gcs"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
-	"pwd-checker/internal/util"
-	"pwd-checker/pkg/gcs"
 )
 
 var (
@@ -39,7 +38,7 @@ func init() {
 
 func createCommand() error {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-	util.ApplyCliSettings(verbose, profile, pprofPort)
+	applyCliSettings(verbose, profile, pprofPort)
 
 	file, err := os.Open(inputFile)
 	if err != nil {

@@ -1,16 +1,15 @@
 // Copyright (c) 2022. Alvin Baena.
 // SPDX-License-Identifier: MIT
 
-package cli
+package cmd
 
 import (
+	"github.com/alvinbaena/pwd-checker/hibp"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"os"
 	"path/filepath"
-	"pwd-checker/internal/util"
-	"pwd-checker/pkg/hibp"
 )
 
 var (
@@ -34,7 +33,7 @@ func init() {
 
 func downloadCommand() error {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-	util.ApplyCliSettings(verbose, profile, pprofPort)
+	applyCliSettings(verbose, profile, pprofPort)
 
 	abs, err := filepath.Abs(outFile)
 	if err != nil {

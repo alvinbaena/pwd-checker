@@ -6,10 +6,10 @@ package api
 import (
 	"crypto/sha1"
 	"encoding/binary"
+	"github.com/alvinbaena/pwd-checker/gcs"
 	"github.com/gin-gonic/gin"
 	"github.com/nbutton23/zxcvbn-go"
 	"net/http"
-	"pwd-checker/pkg/gcs"
 	"regexp"
 	"strings"
 )

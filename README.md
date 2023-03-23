@@ -1,4 +1,4 @@
-# Password Checker
+# Offline Pwned Passwords Checker
 
 A set of CLI tools for downloading, creating, and searching an offline version of
 the [Pwned Passwords](https://haveibeenpwned.com/Passwords) database.
@@ -16,6 +16,16 @@ one in a hundred million false positive rate in less than 10ms (with SSD storage
 This project also includes a simple REST API for querying the generated GCS Pwned Password database
 for use in other systems that need this kind of check.
 
+## Why?
+
+Some use cases (like the one that inspired this project) require that no passwords (not even partial
+hashes) ever, ever leave the local network. This means that the use of the
+excellent [Have I Been Pwned range API](https://haveibeenpwned.com/API/v2#SearchingPwnedPasswordsByRange)
+is forbidden.
+
+It may also be used in _airgapped_ networks where a strong security posture is required for
+_in-house_ applications.
+
 ## CLI
 
 The CLI tool includes 3 different modes of operation: `download`, `create`, and `query`. Each
@@ -24,14 +34,14 @@ requires the output file from the `download` command, and the `query` command ne
 from the `create` command.
 
 Each sub-command has a `-h` (help) flag to help with their use, but a fast example on how to get up
-and running quickly are presented here:
+and running "quickly" are presented here:
 
 ```shell
 # Download the pwned passwords SHA1 file
 # this takes a while, more threads may make this go faster
 go run cmd/pwd-checker/main.go download -o "/home/user/pwned-pwds.txt"
 # Create a GCS file with a 1-in-100m false positive rate
-# this also may take a while, SSD storage makes this go much faster, also RAM is important
+# this also may take a while, SSD storage makes this go much faster, RAM is also important
 go run cmd/pwd-checker/main.go create -i "/home/user/pwned-pwds.txt" -o "/home/user/pwned-pwds-p100m.gcs" -g 1024 -p 100000000
 # Run an interactive shell session to query the database.
 # May also be run non interactively if omitting the -n flag
@@ -131,15 +141,20 @@ POST /v1/check/password
    is complete.
 2. The server logs to stdout in JSON format.
 3. The server logs the HTTP calls, also in JSON format.
-4. The server caches the password check requests for one hour, with a max of 50.000 requests cached.
+4. The server caches the password check requests for one hour, with a max of 50.000 unique requests
+   cached.
+5. The server supports the autoconfiguration of a self-signed TLS certificate (valid for 30 days)
+   with the use of the `self-tls` flag. This certificate is regenerated on each server start.
 
-### Docker
+### Docker (experimental)
 
 There is a `docker-compose.yaml` and `Dockerfile` file that builds the server to be used. Be warned
 that the file reads are incredibly slow, so the start-up procedure takes some time, and requests
 tend to take 500-1500ms.
 
 Use the Docker container at your own peril...
+
+**PD:** I will probably accept PR's for the Docker container to work correctly.
 
 ## Profiling
 
@@ -149,8 +164,8 @@ port used is `6060`.
 
 ## Unit Tests
 
-The project comes with unit tests for the `pkg` package only. All other packages are untested for
-now.
+The project comes with unit tests for the `gcs` amd `hibp` package only. All other packages are
+untested for now.
 
 ## Load Tests
 

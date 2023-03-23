@@ -1,7 +1,7 @@
 // Copyright (c) 2022. Alvin Baena.
 // SPDX-License-Identifier: MIT
 
-package cli
+package cmd
 
 var (
 	// create, query, serve

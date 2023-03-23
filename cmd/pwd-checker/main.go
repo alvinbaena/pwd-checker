@@ -4,11 +4,11 @@
 package main
 
 import (
+	"github.com/alvinbaena/pwd-checker/cmd"
 	"github.com/rs/zerolog"
-	"pwd-checker/internal/cli"
 )
 
 func main() {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	_ = cli.Execute()
+	_ = cmd.Execute()
 }

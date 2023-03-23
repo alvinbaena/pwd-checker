@@ -6,6 +6,7 @@ package gcs
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/alvinbaena/pwd-checker/internal/util"
 	"github.com/dgraph-io/ristretto"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/text/language"
@@ -13,7 +14,6 @@ import (
 	"io"
 	"math"
 	"os"
-	"pwd-checker/internal/util"
 	"time"
 )
 
@@ -167,7 +167,7 @@ func (r *Reader) Exists(target uint64) (bool, error) {
 	// CPU usage in all cores.
 	//
 	// This is a solution that works "well enough". I probably should change it to something more CPU
-	// efficient. Less power used == less global warming I guess...
+	// efficient. Less power used = less global warming I guess...
 	file, err := os.OpenFile(r.fileName, os.O_RDONLY, 444)
 	if err != nil {
 		return false, err

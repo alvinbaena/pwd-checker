@@ -4,12 +4,9 @@
 package util
 
 import (
-	"fmt"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/shirou/gopsutil/v3/mem"
-	"net/http"
 	"regexp"
 	"runtime"
 	"strings"
@@ -26,23 +23,6 @@ func Stats() func() {
 		log.Debug().Msgf("HeapAlloc: %d MB, HeapSys: %d MB, HeapIdle: %d MB",
 			ms.HeapAlloc/1024/1024, ms.HeapSys/1024/1024, ms.HeapIdle/1024/1024)
 		log.Debug().Msgf("HeapObjects: %d", ms.HeapObjects)
-	}
-}
-
-func ApplyCliSettings(verbose bool, profile bool, pprofPort uint16) {
-	if verbose {
-		log.Warn().Msgf("verbosity up")
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	}
-
-	if profile {
-		log.Info().Msgf("profiling is enabled for this session. Server will listen on port %d", pprofPort)
-		go func() {
-			if err := http.ListenAndServe(fmt.Sprintf(":%d", pprofPort), nil); err != nil {
-				log.Error().Err(err).Msgf("error starting profiling server on port %d", pprofPort)
-				return
-			}
-		}()
 	}
 }
 

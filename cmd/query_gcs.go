@@ -1,19 +1,18 @@
 // Copyright (c) 2022. Alvin Baena.
 // SPDX-License-Identifier: MIT
 
-package cli
+package cmd
 
 import (
 	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
+	"github.com/alvinbaena/pwd-checker/gcs"
 	"github.com/manifoldco/promptui"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"os"
-	"pwd-checker/internal/util"
-	"pwd-checker/pkg/gcs"
 	"regexp"
 	"strings"
 )
@@ -54,7 +53,7 @@ func init() {
 
 func queryCommand(password string) (err error) {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-	util.ApplyCliSettings(verbose, profile, pprofPort)
+	applyCliSettings(verbose, profile, pprofPort)
 
 	searcher := gcs.NewReader(inputFile)
 	if err = searcher.Initialize(); err != nil {

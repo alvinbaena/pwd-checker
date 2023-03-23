@@ -1,10 +1,14 @@
 // Copyright (c) 2022. Alvin Baena.
 // SPDX-License-Identifier: MIT
 
-package cli
+package cmd
 
 import (
+	"fmt"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"net/http"
 )
 
 var (
@@ -24,4 +28,21 @@ func init() {
 
 func Execute() error {
 	return rootCmd.Execute()
+}
+
+func applyCliSettings(verbose bool, profile bool, pprofPort uint16) {
+	if verbose {
+		log.Warn().Msgf("verbosity up")
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	}
+
+	if profile {
+		log.Info().Msgf("profiling is enabled for this session. Server will listen on port %d", pprofPort)
+		go func() {
+			if err := http.ListenAndServe(fmt.Sprintf(":%d", pprofPort), nil); err != nil {
+				log.Error().Err(err).Msgf("error starting profiling server on port %d", pprofPort)
+				return
+			}
+		}()
+	}
 }

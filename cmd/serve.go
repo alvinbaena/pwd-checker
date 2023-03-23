@@ -1,7 +1,7 @@
 // Copyright (c) 2022. Alvin Baena.
 // SPDX-License-Identifier: MIT
 
-package cli
+package cmd
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"github.com/alvinbaena/pwd-checker/internal/api"
 	"github.com/gin-contrib/logger"
 	"github.com/gin-gonic/gin"
 	"github.com/likexian/selfca"
@@ -18,8 +19,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"pwd-checker/internal/api"
-	"pwd-checker/internal/util"
 	"syscall"
 	"time"
 )
@@ -48,7 +47,7 @@ func init() {
 }
 
 func serveCommand() error {
-	util.ApplyCliSettings(verbose, profile, pprofPort)
+	applyCliSettings(verbose, profile, pprofPort)
 	if !verbose {
 		gin.SetMode(gin.ReleaseMode)
 	}
