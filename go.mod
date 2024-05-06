@@ -1,6 +1,6 @@
 module github.com/alvinbaena/pwd-checker
 
-go 1.17
+go 1.21
 
 require (
 	github.com/dgraph-io/ristretto v0.1.1
